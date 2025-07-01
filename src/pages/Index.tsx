@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy } from 'lucide-react';
+import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield } from 'lucide-react';
 
 interface InventoryItem {
   id: string;
@@ -36,6 +36,7 @@ interface IssueRecord {
 
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -82,14 +83,17 @@ const Index = () => {
     if (email === 'sanjaykhara9876@gmail.com' && password === 'bakchodHall3') {
       setIsLoggedIn(true);
       localStorage.setItem('hall3-auth', 'true');
+      setShowLogin(false);
+      setEmail('');
+      setPassword('');
       toast({
-        title: "Login Successful",
-        description: "Welcome to Hall-3 Sports Inventory Tracker!",
+        title: "Admin Login Successful",
+        description: "Welcome to Hall-3 Sports Inventory Admin Panel!",
       });
     } else {
       toast({
         title: "Login Failed",
-        description: "Invalid credentials. Access denied.",
+        description: "Invalid admin credentials. Access denied.",
         variant: "destructive",
       });
     }
@@ -101,7 +105,7 @@ const Index = () => {
     setEmail('');
     setPassword('');
     toast({
-      title: "Logged Out",
+      title: "Admin Logged Out",
       description: "You have been logged out successfully.",
     });
   };
@@ -274,124 +278,147 @@ const Index = () => {
     });
   };
 
-  if (!isLoggedIn) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50">
-        {/* Hero Section with Logo */}
-        <div className="relative h-64 bg-gradient-to-r from-red-600 via-red-500 to-orange-500 overflow-hidden">
-          <div className="absolute inset-0 bg-black/20"></div>
-          <img 
-            src="/lovable-uploads/5b532a8c-4c79-4972-b351-f890ab065309.png" 
-            alt="Hall-3 Sports Logo" 
-            className="absolute top-4 left-1/2 transform -translate-x-1/2 h-32 w-32 object-contain z-10"
-          />
-          <div className="relative z-10 flex items-center justify-center h-full">
-            <div className="text-center text-white mt-16">
-              <h1 className="text-4xl md:text-6xl font-bold mb-2 bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text text-transparent">
-                Hall-3 Sports Inventory Tracker
-              </h1>
-              <p className="text-xl md:text-2xl font-semibold opacity-90">
-                Sports Equipment Management System
-              </p>
-            </div>
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Hero Section with Logo */}
+      <div className="relative h-64 bg-gradient-to-r from-slate-100 to-gray-100 border-b-4 border-red-500">
+        <img 
+          src="/lovable-uploads/5b532a8c-4c79-4972-b351-f890ab065309.png" 
+          alt="Hall-3 Sports Logo" 
+          className="absolute top-4 left-1/2 transform -translate-x-1/2 h-32 w-32 object-contain z-10"
+        />
+        <div className="relative z-10 flex items-center justify-center h-full">
+          <div className="text-center text-gray-800 mt-16">
+            <h1 className="text-4xl md:text-6xl font-bold mb-2 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+              Hall-3 Sports Inventory Tracker
+            </h1>
+            <p className="text-xl md:text-2xl font-semibold text-gray-600">
+              Sports Equipment Management System
+            </p>
           </div>
         </div>
-
-        {/* Login Section */}
-        <div className="flex items-center justify-center py-16">
-          <Card className="w-full max-w-md shadow-2xl border-2 border-red-200">
-            <CardHeader className="text-center bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-t-lg">
-              <CardTitle className="text-2xl font-bold flex items-center justify-center gap-2">
-                <LogIn className="h-6 w-6" />
-                Admin Login
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="border-red-200 focus:border-red-500"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="border-red-200 focus:border-red-500"
-                  onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                />
-              </div>
-              <Button 
-                onClick={handleLogin} 
-                className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
+        
+        {/* Admin Login Button - Top Right */}
+        <div className="absolute top-4 right-4 z-20">
+          {!isLoggedIn ? (
+            <Dialog open={showLogin} onOpenChange={setShowLogin}>
+              <DialogTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className="bg-white border-red-500 text-red-600 hover:bg-red-50 shadow-lg"
+                >
+                  <Shield className="h-4 w-4 mr-2" />
+                  Admin Login
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-white">
+                <DialogHeader>
+                  <DialogTitle className="text-center text-red-600 text-xl font-bold flex items-center justify-center gap-2">
+                    <LogIn className="h-6 w-6" />
+                    Admin Login
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 p-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="border-gray-300 focus:border-red-500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="border-gray-300 focus:border-red-500"
+                      onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleLogin} 
+                    className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
+                  >
+                    Login as Admin
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Badge variant="default" className="bg-green-600 text-white">Admin</Badge>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                className="bg-white border-red-500 text-red-600 hover:bg-red-50"
               >
-                Login
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          )}
         </div>
+      </div>
 
-        {/* Footer */}
-        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-red-600 to-orange-600 text-white p-4">
-          <div className="text-center">
-            <p className="text-2xl font-bold mb-1">🔥 HALL 3 KA TEMPO HIGH HAI 🔥</p>
-            <p className="text-sm opacity-80">Website created by Sanjay Khara (Y23), all rights are reserved to him.</p>
+      {/* Sports Photos Gallery */}
+      <div className="bg-gray-50 py-8">
+        <div className="container mx-auto px-4">
+          <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Hall-3 Sports Activities</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="relative h-32 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg overflow-hidden shadow-lg">
+              <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg">
+                🏏 Cricket
+              </div>
+            </div>
+            <div className="relative h-32 bg-gradient-to-br from-green-500 to-green-600 rounded-lg overflow-hidden shadow-lg">
+              <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg">
+                ⚽ Football
+              </div>
+            </div>
+            <div className="relative h-32 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg overflow-hidden shadow-lg">
+              <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg">
+                🏀 Basketball
+              </div>
+            </div>
+            <div className="relative h-32 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg overflow-hidden shadow-lg">
+              <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg">
+                🏸 Badminton
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    );
-  }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-red-600 via-red-500 to-orange-500 text-white shadow-lg">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <img 
-                src="/lovable-uploads/5b532a8c-4c79-4972-b351-f890ab065309.png" 
-                alt="Hall-3 Sports Logo" 
-                className="h-12 w-12 object-contain"
-              />
-              <div>
-                <h1 className="text-2xl font-bold">Hall-3 Sports Inventory Tracker</h1>
-                <p className="text-sm opacity-90">Admin Dashboard</p>
+      {/* Admin Controls Bar */}
+      {isLoggedIn && (
+        <div className="bg-red-600 text-white shadow-lg">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <h2 className="text-lg font-bold">Admin Dashboard</h2>
               </div>
-            </div>
-            <div className="flex items-center gap-4">
               <Button
                 onClick={exportToExcel}
                 variant="outline"
                 className="bg-white/10 border-white/20 text-white hover:bg-white/20"
               >
                 <Download className="h-4 w-4 mr-2" />
-                Export Data
-              </Button>
-              <Button
-                onClick={handleLogout}
-                variant="outline"
-                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
+                Export CSV
               </Button>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Stats Cards */}
       <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -403,7 +430,7 @@ const Index = () => {
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
+          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -415,7 +442,7 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white">
+          <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white shadow-lg">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -427,7 +454,7 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
+          <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -442,184 +469,206 @@ const Index = () => {
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="inventory">Inventory Management</TabsTrigger>
-            <TabsTrigger value="issues">Issue & Return</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100">
+            <TabsTrigger value="inventory" className="data-[state=active]:bg-white">Sports Inventory</TabsTrigger>
+            <TabsTrigger value="issues" className="data-[state=active]:bg-white">Issue & Return</TabsTrigger>
           </TabsList>
 
           <TabsContent value="inventory" className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-800">Sports Inventory</h2>
-              <Dialog open={showAddItem} onOpenChange={setShowAddItem}>
-                <DialogTrigger asChild>
-                  <Button className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Item
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add New Sports Item</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="name">Item Name</Label>
-                      <Input
-                        id="name"
-                        value={newItem.name}
-                        onChange={(e) => setNewItem({...newItem, name: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="category">Category</Label>
-                      <Select onValueChange={(value) => setNewItem({...newItem, category: value})}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Cricket">Cricket</SelectItem>
-                          <SelectItem value="Football">Football</SelectItem>
-                          <SelectItem value="Basketball">Basketball</SelectItem>
-                          <SelectItem value="Badminton">Badminton</SelectItem>
-                          <SelectItem value="Tennis">Tennis</SelectItem>
-                          <SelectItem value="Other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="quantity">Quantity</Label>
-                      <Input
-                        id="quantity"
-                        type="number"
-                        value={newItem.quantity}
-                        onChange={(e) => setNewItem({...newItem, quantity: parseInt(e.target.value) || 0})}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="condition">Condition</Label>
-                      <Select onValueChange={(value) => setNewItem({...newItem, condition: value})}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select condition" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Excellent">Excellent</SelectItem>
-                          <SelectItem value="Good">Good</SelectItem>
-                          <SelectItem value="Fair">Fair</SelectItem>
-                          <SelectItem value="Poor">Poor</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button onClick={addInventoryItem} className="w-full">
+              {isLoggedIn && (
+                <Dialog open={showAddItem} onOpenChange={setShowAddItem}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600">
+                      <Plus className="h-4 w-4 mr-2" />
                       Add Item
                     </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogTrigger>
+                  <DialogContent className="bg-white">
+                    <DialogHeader>
+                      <DialogTitle>Add New Sports Item</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="name">Item Name</Label>
+                        <Input
+                          id="name"
+                          value={newItem.name}
+                          onChange={(e) => setNewItem({...newItem, name: e.target.value})}
+                          className="border-gray-300 focus:border-red-500"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="category">Category</Label>
+                        <Select onValueChange={(value) => setNewItem({...newItem, category: value})}>
+                          <SelectTrigger className="border-gray-300 focus:border-red-500">
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Cricket">Cricket</SelectItem>
+                            <SelectItem value="Football">Football</SelectItem>
+                            <SelectItem value="Basketball">Basketball</SelectItem>
+                            <SelectItem value="Badminton">Badminton</SelectItem>
+                            <SelectItem value="Tennis">Tennis</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="quantity">Quantity</Label>
+                        <Input
+                          id="quantity"
+                          type="number"
+                          value={newItem.quantity}
+                          onChange={(e) => setNewItem({...newItem, quantity: parseInt(e.target.value) || 0})}
+                          className="border-gray-300 focus:border-red-500"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="condition">Condition</Label>
+                        <Select onValueChange={(value) => setNewItem({...newItem, condition: value})}>
+                          <SelectTrigger className="border-gray-300 focus:border-red-500">
+                            <SelectValue placeholder="Select condition" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Excellent">Excellent</SelectItem>
+                            <SelectItem value="Good">Good</SelectItem>
+                            <SelectItem value="Fair">Fair</SelectItem>
+                            <SelectItem value="Poor">Poor</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button onClick={addInventoryItem} className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600">
+                        Add Item
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
 
             <div className="grid gap-4">
               {inventory.map((item) => (
-                <Card key={item.id} className="border-l-4 border-l-red-500">
+                <Card key={item.id} className="border-l-4 border-l-red-500 bg-white shadow-md">
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold text-gray-800">{item.name}</h3>
                         <div className="flex gap-4 mt-2 text-sm text-gray-600">
-                          <span>Category: <Badge variant="outline">{item.category}</Badge></span>
+                          <span>Category: <Badge variant="outline" className="border-red-200 text-red-700">{item.category}</Badge></span>
                           <span>Total: {item.quantity}</span>
                           <span>Available: <Badge variant={item.available > 0 ? "default" : "destructive"}>{item.available}</Badge></span>
                           <span>Condition: <Badge variant="secondary">{item.condition}</Badge></span>
                         </div>
                         <p className="text-xs text-gray-500 mt-1">Added: {item.addedDate}</p>
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setEditingItem(item)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => deleteInventoryItem(item.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      {isLoggedIn && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingItem(item)}
+                            className="border-gray-300 hover:bg-gray-50"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => deleteInventoryItem(item.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
               ))}
+              
+              {inventory.length === 0 && (
+                <Card className="bg-gray-50">
+                  <CardContent className="p-8 text-center">
+                    <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-600">No sports equipment added yet.</p>
+                    {isLoggedIn && <p className="text-sm text-gray-500 mt-2">Add your first item using the "Add Item" button above.</p>}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
 
           <TabsContent value="issues" className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-800">Issue & Return Management</h2>
-              <Dialog open={showIssueDialog} onOpenChange={setShowIssueDialog}>
-                <DialogTrigger asChild>
-                  <Button className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Issue Item
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Issue Sports Item</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="item">Select Item</Label>
-                      <Select onValueChange={(value) => setIssueForm({...issueForm, itemId: value})}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select item to issue" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {inventory.filter(item => item.available > 0).map(item => (
-                            <SelectItem key={item.id} value={item.id}>
-                              {item.name} (Available: {item.available})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="studentName">Student Name</Label>
-                      <Input
-                        id="studentName"
-                        value={issueForm.studentName}
-                        onChange={(e) => setIssueForm({...issueForm, studentName: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="studentId">Student ID</Label>
-                      <Input
-                        id="studentId"
-                        value={issueForm.studentId}
-                        onChange={(e) => setIssueForm({...issueForm, studentId: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="notes">Notes (Optional)</Label>
-                      <Textarea
-                        id="notes"
-                        value={issueForm.notes}
-                        onChange={(e) => setIssueForm({...issueForm, notes: e.target.value})}
-                      />
-                    </div>
-                    <Button onClick={issueItem} className="w-full">
+              {isLoggedIn && (
+                <Dialog open={showIssueDialog} onOpenChange={setShowIssueDialog}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
+                      <Plus className="h-4 w-4 mr-2" />
                       Issue Item
                     </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogTrigger>
+                  <DialogContent className="bg-white">
+                    <DialogHeader>
+                      <DialogTitle>Issue Sports Item</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="item">Select Item</Label>
+                        <Select onValueChange={(value) => setIssueForm({...issueForm, itemId: value})}>
+                          <SelectTrigger className="border-gray-300 focus:border-red-500">
+                            <SelectValue placeholder="Select item to issue" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {inventory.filter(item => item.available > 0).map(item => (
+                              <SelectItem key={item.id} value={item.id}>
+                                {item.name} (Available: {item.available})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="studentName">Student Name</Label>
+                        <Input
+                          id="studentName"
+                          value={issueForm.studentName}
+                          onChange={(e) => setIssueForm({...issueForm, studentName: e.target.value})}
+                          className="border-gray-300 focus:border-red-500"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="studentId">Student ID</Label>
+                        <Input
+                          id="studentId"
+                          value={issueForm.studentId}
+                          onChange={(e) => setIssueForm({...issueForm, studentId: e.target.value})}
+                          className="border-gray-300 focus:border-red-500"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="notes">Notes (Optional)</Label>
+                        <Textarea
+                          id="notes"
+                          value={issueForm.notes}
+                          onChange={(e) => setIssueForm({...issueForm, notes: e.target.value})}
+                          className="border-gray-300 focus:border-red-500"
+                        />
+                      </div>
+                      <Button onClick={issueItem} className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
+                        Issue Item
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
 
             <div className="grid gap-4">
               {issues.map((issue) => (
-                <Card key={issue.id} className={`border-l-4 ${issue.status === 'issued' ? 'border-l-yellow-500' : 'border-l-green-500'}`}>
+                <Card key={issue.id} className={`border-l-4 ${issue.status === 'issued' ? 'border-l-yellow-500' : 'border-l-green-500'} bg-white shadow-md`}>
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
@@ -635,7 +684,7 @@ const Index = () => {
                         </div>
                         {issue.notes && <p className="text-sm text-gray-600 mt-1">Notes: {issue.notes}</p>}
                       </div>
-                      {issue.status === 'issued' && (
+                      {issue.status === 'issued' && isLoggedIn && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -649,6 +698,16 @@ const Index = () => {
                   </CardContent>
                 </Card>
               ))}
+              
+              {issues.length === 0 && (
+                <Card className="bg-gray-50">
+                  <CardContent className="p-8 text-center">
+                    <Activity className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-600">No items have been issued yet.</p>
+                    {isLoggedIn && <p className="text-sm text-gray-500 mt-2">Start issuing equipment using the "Issue Item" button above.</p>}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
         </Tabs>
