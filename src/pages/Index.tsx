@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft } from 'lucide-react';
+import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft, Bell, Check, X } from 'lucide-react';
 
 interface InventoryItem {
   id: string;
@@ -34,6 +35,23 @@ interface IssueRecord {
   notes?: string;
 }
 
+interface ReturnRequest {
+  id: string;
+  issueId: string;
+  requestDate: string;
+  status: 'pending' | 'approved' | 'rejected';
+  notes?: string;
+}
+
+interface Notification {
+  id: string;
+  type: 'issue' | 'return_request';
+  message: string;
+  timestamp: string;
+  read: boolean;
+  data?: any;
+}
+
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -41,10 +59,13 @@ const Index = () => {
   const [password, setPassword] = useState('');
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [issues, setIssues] = useState<IssueRecord[]>([]);
+  const [returnRequests, setReturnRequests] = useState<ReturnRequest[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeTab, setActiveTab] = useState('inventory');
   const [showAddItem, setShowAddItem] = useState(false);
   const [showIssueDialog, setShowIssueDialog] = useState(false);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const { toast } = useToast();
 
@@ -73,6 +94,8 @@ const Index = () => {
     // Load data from localStorage
     const savedInventory = localStorage.getItem('hall3-inventory');
     const savedIssues = localStorage.getItem('hall3-issues');
+    const savedReturnRequests = localStorage.getItem('hall3-return-requests');
+    const savedNotifications = localStorage.getItem('hall3-notifications');
     const savedAuth = localStorage.getItem('hall3-auth');
 
     if (savedInventory) {
@@ -81,10 +104,39 @@ const Index = () => {
     if (savedIssues) {
       setIssues(JSON.parse(savedIssues));
     }
+    if (savedReturnRequests) {
+      setReturnRequests(JSON.parse(savedReturnRequests));
+    }
+    if (savedNotifications) {
+      setNotifications(JSON.parse(savedNotifications));
+    }
     if (savedAuth === 'true') {
       setIsLoggedIn(true);
     }
   }, []);
+
+  const addNotification = (type: 'issue' | 'return_request', message: string, data?: any) => {
+    const notification: Notification = {
+      id: Date.now().toString(),
+      type,
+      message,
+      timestamp: new Date().toISOString(),
+      read: false,
+      data
+    };
+    
+    const updatedNotifications = [notification, ...notifications];
+    setNotifications(updatedNotifications);
+    localStorage.setItem('hall3-notifications', JSON.stringify(updatedNotifications));
+  };
+
+  const markNotificationAsRead = (id: string) => {
+    const updatedNotifications = notifications.map(n => 
+      n.id === id ? { ...n, read: true } : n
+    );
+    setNotifications(updatedNotifications);
+    localStorage.setItem('hall3-notifications', JSON.stringify(updatedNotifications));
+  };
 
   const handleLogin = () => {
     if (email === 'sanjaykhara9876@gmail.com' && password === 'bakchodHall3') {
@@ -207,6 +259,9 @@ const Index = () => {
     localStorage.setItem('hall3-inventory', JSON.stringify(updatedInventory));
     localStorage.setItem('hall3-issues', JSON.stringify(updatedIssues));
 
+    // Add notification for admin
+    addNotification('issue', `New item issued: ${item.name} to ${issueForm.studentName} (${issueForm.studentId})`, issue);
+
     setIssueForm({ itemId: '', studentName: '', studentId: '', roomNumber: '', notes: '' });
     setShowIssueDialog(false);
 
@@ -216,34 +271,7 @@ const Index = () => {
     });
   };
 
-  const returnItemById = (issueId: string) => {
-    const issue = issues.find(i => i.id === issueId);
-    if (!issue) return;
-
-    const updatedIssues = issues.map(i => 
-      i.id === issueId 
-        ? { ...i, status: 'returned' as const, returnDate: new Date().toISOString().split('T')[0] }
-        : i
-    );
-
-    const updatedInventory = inventory.map(i => 
-      i.id === issue.itemId 
-        ? { ...i, available: i.available + 1 }
-        : i
-    );
-
-    setIssues(updatedIssues);
-    setInventory(updatedInventory);
-    localStorage.setItem('hall3-issues', JSON.stringify(updatedIssues));
-    localStorage.setItem('hall3-inventory', JSON.stringify(updatedInventory));
-
-    toast({
-      title: "Item Returned",
-      description: `${issue.itemName} returned by ${issue.studentName}`,
-    });
-  };
-
-  const returnItem = () => {
+  const requestReturn = () => {
     if (!returnForm.issueId) {
       toast({
         title: "Error",
@@ -253,9 +281,84 @@ const Index = () => {
       return;
     }
 
-    returnItemById(returnForm.issueId);
+    const issue = issues.find(i => i.id === returnForm.issueId);
+    if (!issue) return;
+
+    const returnRequest: ReturnRequest = {
+      id: Date.now().toString(),
+      issueId: returnForm.issueId,
+      requestDate: new Date().toISOString().split('T')[0],
+      status: 'pending',
+      notes: returnForm.notes
+    };
+
+    const updatedReturnRequests = [...returnRequests, returnRequest];
+    setReturnRequests(updatedReturnRequests);
+    localStorage.setItem('hall3-return-requests', JSON.stringify(updatedReturnRequests));
+
+    // Add notification for admin
+    addNotification('return_request', `Return request for ${issue.itemName} by ${issue.studentName} (${issue.studentId})`, { issue, returnRequest });
+
     setReturnForm({ issueId: '', notes: '' });
     setShowReturnDialog(false);
+
+    toast({
+      title: "Return Request Submitted",
+      description: `Return request for ${issue.itemName} has been submitted to admin.`,
+    });
+  };
+
+  const approveReturnRequest = (requestId: string) => {
+    const returnRequest = returnRequests.find(r => r.id === requestId);
+    if (!returnRequest) return;
+
+    const issue = issues.find(i => i.id === returnRequest.issueId);
+    if (!issue) return;
+
+    // Update return request status
+    const updatedReturnRequests = returnRequests.map(r => 
+      r.id === requestId ? { ...r, status: 'approved' as const } : r
+    );
+
+    // Update issue status
+    const updatedIssues = issues.map(i => 
+      i.id === returnRequest.issueId 
+        ? { ...i, status: 'returned' as const, returnDate: new Date().toISOString().split('T')[0] }
+        : i
+    );
+
+    // Update inventory availability
+    const updatedInventory = inventory.map(i => 
+      i.id === issue.itemId 
+        ? { ...i, available: i.available + 1 }
+        : i
+    );
+
+    setReturnRequests(updatedReturnRequests);
+    setIssues(updatedIssues);
+    setInventory(updatedInventory);
+
+    localStorage.setItem('hall3-return-requests', JSON.stringify(updatedReturnRequests));
+    localStorage.setItem('hall3-issues', JSON.stringify(updatedIssues));
+    localStorage.setItem('hall3-inventory', JSON.stringify(updatedInventory));
+
+    toast({
+      title: "Return Approved",
+      description: `${issue.itemName} return approved for ${issue.studentName}`,
+    });
+  };
+
+  const rejectReturnRequest = (requestId: string) => {
+    const updatedReturnRequests = returnRequests.map(r => 
+      r.id === requestId ? { ...r, status: 'rejected' as const } : r
+    );
+    setReturnRequests(updatedReturnRequests);
+    localStorage.setItem('hall3-return-requests', JSON.stringify(updatedReturnRequests));
+
+    toast({
+      title: "Return Request Rejected",
+      description: "Return request has been rejected.",
+    });
   };
 
   const exportToExcel = () => {
@@ -302,6 +405,16 @@ const Index = () => {
     });
   };
 
+  const getUserIssues = (studentName: string, studentId: string) => {
+    return issues.filter(issue => 
+      issue.studentName === studentName && 
+      issue.studentId === studentId && 
+      issue.status === 'issued'
+    );
+  };
+
+  const unreadNotifications = notifications.filter(n => !n.read).length;
+
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section with Logo */}
@@ -309,10 +422,10 @@ const Index = () => {
         <img 
           src="/lovable-uploads/5b532a8c-4c79-4972-b351-f890ab065309.png" 
           alt="Hall-3 Sports Logo" 
-          className="absolute top-2 md:top-4 left-1/2 transform -translate-x-1/2 h-16 w-16 md:h-32 md:w-32 object-contain z-10"
+          className="absolute top-4 md:top-8 left-1/2 transform -translate-x-1/2 h-20 w-20 md:h-28 md:w-28 object-contain z-10"
         />
         <div className="relative z-10 flex items-center justify-center h-full">
-          <div className="text-center text-gray-800 mt-8 md:mt-16 px-4">
+          <div className="text-center text-gray-800 mt-16 md:mt-20 px-4">
             <h1 className="text-2xl md:text-4xl lg:text-6xl font-bold mb-2 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
               Hall-3 Sports Inventory Tracker
             </h1>
@@ -377,6 +490,74 @@ const Index = () => {
           ) : (
             <div className="flex items-center gap-2">
               <Badge variant="default" className="bg-green-600 text-white text-xs">Admin</Badge>
+              
+              {/* Notifications Button */}
+              <Dialog open={showNotifications} onOpenChange={setShowNotifications}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-white border-blue-500 text-blue-600 hover:bg-blue-50 relative"
+                  >
+                    <Bell className="h-3 w-3 md:h-4 md:w-4" />
+                    {unreadNotifications > 0 && (
+                      <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 text-xs bg-red-500">
+                        {unreadNotifications}
+                      </Badge>
+                    )}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-white max-w-md max-h-96 overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Notifications</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-2">
+                    {notifications.length === 0 ? (
+                      <p className="text-gray-500 text-center py-4">No notifications</p>
+                    ) : (
+                      notifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          className={`p-3 rounded-lg border ${notification.read ? 'bg-gray-50' : 'bg-blue-50 border-blue-200'}`}
+                          onClick={() => markNotificationAsRead(notification.id)}
+                        >
+                          <p className="text-sm font-medium">{notification.message}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {new Date(notification.timestamp).toLocaleString()}
+                          </p>
+                          {notification.type === 'return_request' && notification.data && (
+                            <div className="flex gap-2 mt-2">
+                              <Button
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  approveReturnRequest(notification.data.returnRequest.id);
+                                }}
+                                className="bg-green-500 hover:bg-green-600"
+                              >
+                                <Check className="h-3 w-3 mr-1" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  rejectReturnRequest(notification.data.returnRequest.id);
+                                }}
+                              >
+                                <X className="h-3 w-3 mr-1" />
+                                Reject
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+
               <Button
                 onClick={handleLogout}
                 variant="outline"
@@ -388,35 +569,6 @@ const Index = () => {
               </Button>
             </div>
           )}
-        </div>
-      </div>
-
-      {/* Sports Photos Gallery */}
-      <div className="bg-gray-50 py-4 md:py-8">
-        <div className="container mx-auto px-4">
-          <h2 className="text-xl md:text-2xl font-bold text-center text-gray-800 mb-4 md:mb-6">Hall-3 Sports Activities</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-            <div className="relative h-20 md:h-32 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg overflow-hidden shadow-lg">
-              <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-sm md:text-lg">
-                🏏 Cricket
-              </div>
-            </div>
-            <div className="relative h-20 md:h-32 bg-gradient-to-br from-green-500 to-green-600 rounded-lg overflow-hidden shadow-lg">
-              <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-sm md:text-lg">
-                ⚽ Football
-              </div>
-            </div>
-            <div className="relative h-20 md:h-32 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg overflow-hidden shadow-lg">
-              <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-sm md:text-lg">
-                🏀 Basketball
-              </div>
-            </div>
-            <div className="relative h-20 md:h-32 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg overflow-hidden shadow-lg">
-              <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-sm md:text-lg">
-                🏸 Badminton
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -498,24 +650,24 @@ const Index = () => {
               <DialogTrigger asChild>
                 <Button variant="outline" className="border-blue-500 text-blue-600 hover:bg-blue-50 flex-1 sm:flex-none">
                   <ArrowLeft className="h-4 w-4 mr-2" />
-                  Return Item
+                  Request Return
                 </Button>
               </DialogTrigger>
               <DialogContent className="bg-white max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Return Sports Item</DialogTitle>
+                  <DialogTitle>Request Item Return</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="returnItem">Select Item to Return</Label>
+                    <Label htmlFor="returnItem">Select Your Issued Item</Label>
                     <Select onValueChange={(value) => setReturnForm({...returnForm, issueId: value})}>
                       <SelectTrigger className="border-gray-300 focus:border-red-500">
-                        <SelectValue placeholder="Select issued item to return" />
+                        <SelectValue placeholder="Select your issued item" />
                       </SelectTrigger>
                       <SelectContent>
                         {issues.filter(issue => issue.status === 'issued').map(issue => (
                           <SelectItem key={issue.id} value={issue.id}>
-                            {issue.itemName} - {issue.studentName} (Room: {issue.roomNumber})
+                            {issue.itemName} - {issue.studentName} ({issue.studentId})
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -531,8 +683,8 @@ const Index = () => {
                       placeholder="Any damage or notes about the return..."
                     />
                   </div>
-                  <Button onClick={returnItem} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700">
-                    Return Item
+                  <Button onClick={requestReturn} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700">
+                    Request Return
                   </Button>
                 </div>
               </DialogContent>
@@ -845,17 +997,6 @@ const Index = () => {
                         </div>
                         {issue.notes && <p className="text-sm text-gray-600 mt-1">Notes: {issue.notes}</p>}
                       </div>
-                      {issue.status === 'issued' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => returnItemById(issue.id)}
-                          className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
-                        >
-                          <ArrowLeft className="h-4 w-4 mr-1" />
-                          Mark Returned
-                        </Button>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
