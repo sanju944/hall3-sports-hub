@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft, Bell, Check, X } from 'lucide-react';
+import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft, Bell, Check, X, Phone } from 'lucide-react';
 
 interface InventoryItem {
   id: string;
@@ -29,6 +28,7 @@ interface IssueRecord {
   studentName: string;
   studentId: string;
   roomNumber: string;
+  phoneNumber: string;
   issueDate: string;
   returnDate?: string;
   status: 'issued' | 'returned';
@@ -82,6 +82,7 @@ const Index = () => {
     studentName: '',
     studentId: '',
     roomNumber: '',
+    phoneNumber: '',
     notes: ''
   });
 
@@ -134,6 +135,12 @@ const Index = () => {
     const updatedNotifications = notifications.map(n => 
       n.id === id ? { ...n, read: true } : n
     );
+    setNotifications(updatedNotifications);
+    localStorage.setItem('hall3-notifications', JSON.stringify(updatedNotifications));
+  };
+
+  const removeNotification = (id: string) => {
+    const updatedNotifications = notifications.filter(n => n.id !== id);
     setNotifications(updatedNotifications);
     localStorage.setItem('hall3-notifications', JSON.stringify(updatedNotifications));
   };
@@ -214,10 +221,20 @@ const Index = () => {
   };
 
   const issueItem = () => {
-    if (!issueForm.itemId || !issueForm.studentName || !issueForm.studentId || !issueForm.roomNumber) {
+    if (!issueForm.itemId || !issueForm.studentName || !issueForm.studentId || !issueForm.roomNumber || !issueForm.phoneNumber) {
       toast({
         title: "Error",
-        description: "Please fill all required fields.",
+        description: "Please fill all required fields including phone number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate phone number (basic validation)
+    if (!/^\d{10}$/.test(issueForm.phoneNumber)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid 10-digit phone number.",
         variant: "destructive",
       });
       return;
@@ -240,6 +257,7 @@ const Index = () => {
       studentName: issueForm.studentName,
       studentId: issueForm.studentId,
       roomNumber: issueForm.roomNumber,
+      phoneNumber: issueForm.phoneNumber,
       issueDate: new Date().toISOString().split('T')[0],
       status: 'issued',
       notes: issueForm.notes
@@ -262,7 +280,7 @@ const Index = () => {
     // Add notification for admin
     addNotification('issue', `New item issued: ${item.name} to ${issueForm.studentName} (${issueForm.studentId})`, issue);
 
-    setIssueForm({ itemId: '', studentName: '', studentId: '', roomNumber: '', notes: '' });
+    setIssueForm({ itemId: '', studentName: '', studentId: '', roomNumber: '', phoneNumber: '', notes: '' });
     setShowIssueDialog(false);
 
     toast({
@@ -327,12 +345,14 @@ const Index = () => {
         : i
     );
 
-    // Update inventory availability
-    const updatedInventory = inventory.map(i => 
-      i.id === issue.itemId 
-        ? { ...i, available: i.available + 1 }
-        : i
-    );
+    // Update inventory availability (ensure it doesn't exceed total quantity)
+    const updatedInventory = inventory.map(i => {
+      if (i.id === issue.itemId) {
+        const newAvailable = Math.min(i.available + 1, i.quantity);
+        return { ...i, available: newAvailable };
+      }
+      return i;
+    });
 
     setReturnRequests(updatedReturnRequests);
     setIssues(updatedIssues);
@@ -341,6 +361,14 @@ const Index = () => {
     localStorage.setItem('hall3-return-requests', JSON.stringify(updatedReturnRequests));
     localStorage.setItem('hall3-issues', JSON.stringify(updatedIssues));
     localStorage.setItem('hall3-inventory', JSON.stringify(updatedInventory));
+
+    // Remove the notification after approval
+    const notificationToRemove = notifications.find(n => 
+      n.data?.returnRequest?.id === requestId
+    );
+    if (notificationToRemove) {
+      removeNotification(notificationToRemove.id);
+    }
 
     toast({
       title: "Return Approved",
@@ -354,6 +382,14 @@ const Index = () => {
     );
     setReturnRequests(updatedReturnRequests);
     localStorage.setItem('hall3-return-requests', JSON.stringify(updatedReturnRequests));
+
+    // Remove the notification after rejection
+    const notificationToRemove = notifications.find(n => 
+      n.data?.returnRequest?.id === requestId
+    );
+    if (notificationToRemove) {
+      removeNotification(notificationToRemove.id);
+    }
 
     toast({
       title: "Return Request Rejected",
@@ -377,12 +413,13 @@ const Index = () => {
       [''],
       // Issues Header
       ['ISSUE/RETURN DATA'],
-      ['Item Name', 'Student Name', 'Student ID', 'Room Number', 'Issue Date', 'Return Date', 'Status', 'Notes'],
+      ['Item Name', 'Student Name', 'Student ID', 'Room Number', 'Phone Number', 'Issue Date', 'Return Date', 'Status', 'Notes'],
       ...issues.map(issue => [
         issue.itemName,
         issue.studentName,
         issue.studentId,
         issue.roomNumber,
+        issue.phoneNumber,
         issue.issueDate,
         issue.returnDate || 'Not Returned',
         issue.status,
@@ -422,10 +459,10 @@ const Index = () => {
         <img 
           src="/lovable-uploads/5b532a8c-4c79-4972-b351-f890ab065309.png" 
           alt="Hall-3 Sports Logo" 
-          className="absolute top-4 md:top-8 left-1/2 transform -translate-x-1/2 h-20 w-20 md:h-28 md:w-28 object-contain z-10"
+          className="absolute top-6 md:top-12 left-1/2 transform -translate-x-1/2 h-16 w-16 md:h-24 md:w-24 object-contain z-10"
         />
         <div className="relative z-10 flex items-center justify-center h-full">
-          <div className="text-center text-gray-800 mt-16 md:mt-20 px-4">
+          <div className="text-center text-gray-800 mt-12 md:mt-16 px-4">
             <h1 className="text-2xl md:text-4xl lg:text-6xl font-bold mb-2 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
               Hall-3 Sports Inventory Tracker
             </h1>
@@ -620,6 +657,20 @@ const Index = () => {
                       onChange={(e) => setIssueForm({...issueForm, studentId: e.target.value})}
                       className="border-gray-300 focus:border-red-500"
                     />
+                  </div>
+                  <div>
+                    <Label htmlFor="phoneNumber">Phone Number</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="phoneNumber"
+                        value={issueForm.phoneNumber}
+                        onChange={(e) => setIssueForm({...issueForm, phoneNumber: e.target.value})}
+                        className="border-gray-300 focus:border-red-500 pl-10"
+                        placeholder="10-digit phone number"
+                        maxLength={10}
+                      />
+                    </div>
                   </div>
                   <div>
                     <Label htmlFor="roomNumber">Room Number</Label>
