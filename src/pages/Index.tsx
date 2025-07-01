@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield } from 'lucide-react';
+import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft } from 'lucide-react';
 
 interface InventoryItem {
   id: string;
@@ -28,6 +27,7 @@ interface IssueRecord {
   itemName: string;
   studentName: string;
   studentId: string;
+  roomNumber: string;
   issueDate: string;
   returnDate?: string;
   status: 'issued' | 'returned';
@@ -44,6 +44,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState('inventory');
   const [showAddItem, setShowAddItem] = useState(false);
   const [showIssueDialog, setShowIssueDialog] = useState(false);
+  const [showReturnDialog, setShowReturnDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const { toast } = useToast();
 
@@ -59,6 +60,12 @@ const Index = () => {
     itemId: '',
     studentName: '',
     studentId: '',
+    roomNumber: '',
+    notes: ''
+  });
+
+  const [returnForm, setReturnForm] = useState({
+    issueId: '',
     notes: ''
   });
 
@@ -155,7 +162,7 @@ const Index = () => {
   };
 
   const issueItem = () => {
-    if (!issueForm.itemId || !issueForm.studentName || !issueForm.studentId) {
+    if (!issueForm.itemId || !issueForm.studentName || !issueForm.studentId || !issueForm.roomNumber) {
       toast({
         title: "Error",
         description: "Please fill all required fields.",
@@ -180,6 +187,7 @@ const Index = () => {
       itemName: item.name,
       studentName: issueForm.studentName,
       studentId: issueForm.studentId,
+      roomNumber: issueForm.roomNumber,
       issueDate: new Date().toISOString().split('T')[0],
       status: 'issued',
       notes: issueForm.notes
@@ -199,7 +207,7 @@ const Index = () => {
     localStorage.setItem('hall3-inventory', JSON.stringify(updatedInventory));
     localStorage.setItem('hall3-issues', JSON.stringify(updatedIssues));
 
-    setIssueForm({ itemId: '', studentName: '', studentId: '', notes: '' });
+    setIssueForm({ itemId: '', studentName: '', studentId: '', roomNumber: '', notes: '' });
     setShowIssueDialog(false);
 
     toast({
@@ -208,7 +216,7 @@ const Index = () => {
     });
   };
 
-  const returnItem = (issueId: string) => {
+  const returnItemById = (issueId: string) => {
     const issue = issues.find(i => i.id === issueId);
     if (!issue) return;
 
@@ -235,6 +243,21 @@ const Index = () => {
     });
   };
 
+  const returnItem = () => {
+    if (!returnForm.issueId) {
+      toast({
+        title: "Error",
+        description: "Please select an item to return.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    returnItemById(returnForm.issueId);
+    setReturnForm({ issueId: '', notes: '' });
+    setShowReturnDialog(false);
+  };
+
   const exportToExcel = () => {
     const csvContent = [
       // Inventory Header
@@ -251,11 +274,12 @@ const Index = () => {
       [''],
       // Issues Header
       ['ISSUE/RETURN DATA'],
-      ['Item Name', 'Student Name', 'Student ID', 'Issue Date', 'Return Date', 'Status', 'Notes'],
+      ['Item Name', 'Student Name', 'Student ID', 'Room Number', 'Issue Date', 'Return Date', 'Status', 'Notes'],
       ...issues.map(issue => [
         issue.itemName,
         issue.studentName,
         issue.studentId,
+        issue.roomNumber,
         issue.issueDate,
         issue.returnDate || 'Not Returned',
         issue.status,
@@ -281,33 +305,34 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section with Logo */}
-      <div className="relative h-64 bg-gradient-to-r from-slate-100 to-gray-100 border-b-4 border-red-500">
+      <div className="relative h-48 md:h-64 bg-gradient-to-r from-slate-100 to-gray-100 border-b-4 border-red-500">
         <img 
           src="/lovable-uploads/5b532a8c-4c79-4972-b351-f890ab065309.png" 
           alt="Hall-3 Sports Logo" 
-          className="absolute top-4 left-1/2 transform -translate-x-1/2 h-32 w-32 object-contain z-10"
+          className="absolute top-2 md:top-4 left-1/2 transform -translate-x-1/2 h-16 w-16 md:h-32 md:w-32 object-contain z-10"
         />
         <div className="relative z-10 flex items-center justify-center h-full">
-          <div className="text-center text-gray-800 mt-16">
-            <h1 className="text-4xl md:text-6xl font-bold mb-2 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+          <div className="text-center text-gray-800 mt-8 md:mt-16 px-4">
+            <h1 className="text-2xl md:text-4xl lg:text-6xl font-bold mb-2 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
               Hall-3 Sports Inventory Tracker
             </h1>
-            <p className="text-xl md:text-2xl font-semibold text-gray-600">
+            <p className="text-sm md:text-xl lg:text-2xl font-semibold text-gray-600">
               Sports Equipment Management System
             </p>
           </div>
         </div>
         
         {/* Admin Login Button - Top Right */}
-        <div className="absolute top-4 right-4 z-20">
+        <div className="absolute top-2 md:top-4 right-2 md:right-4 z-20">
           {!isLoggedIn ? (
             <Dialog open={showLogin} onOpenChange={setShowLogin}>
               <DialogTrigger asChild>
                 <Button 
                   variant="outline" 
-                  className="bg-white border-red-500 text-red-600 hover:bg-red-50 shadow-lg"
+                  size="sm"
+                  className="bg-white border-red-500 text-red-600 hover:bg-red-50 shadow-lg text-xs md:text-sm"
                 >
-                  <Shield className="h-4 w-4 mr-2" />
+                  <Shield className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
                   Admin Login
                 </Button>
               </DialogTrigger>
@@ -351,13 +376,14 @@ const Index = () => {
             </Dialog>
           ) : (
             <div className="flex items-center gap-2">
-              <Badge variant="default" className="bg-green-600 text-white">Admin</Badge>
+              <Badge variant="default" className="bg-green-600 text-white text-xs">Admin</Badge>
               <Button
                 onClick={handleLogout}
                 variant="outline"
-                className="bg-white border-red-500 text-red-600 hover:bg-red-50"
+                size="sm"
+                className="bg-white border-red-500 text-red-600 hover:bg-red-50 text-xs md:text-sm"
               >
-                <LogOut className="h-4 w-4 mr-2" />
+                <LogOut className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
                 Logout
               </Button>
             </div>
@@ -366,30 +392,151 @@ const Index = () => {
       </div>
 
       {/* Sports Photos Gallery */}
-      <div className="bg-gray-50 py-8">
+      <div className="bg-gray-50 py-4 md:py-8">
         <div className="container mx-auto px-4">
-          <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Hall-3 Sports Activities</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="relative h-32 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg overflow-hidden shadow-lg">
-              <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg">
+          <h2 className="text-xl md:text-2xl font-bold text-center text-gray-800 mb-4 md:mb-6">Hall-3 Sports Activities</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+            <div className="relative h-20 md:h-32 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg overflow-hidden shadow-lg">
+              <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-sm md:text-lg">
                 🏏 Cricket
               </div>
             </div>
-            <div className="relative h-32 bg-gradient-to-br from-green-500 to-green-600 rounded-lg overflow-hidden shadow-lg">
-              <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg">
+            <div className="relative h-20 md:h-32 bg-gradient-to-br from-green-500 to-green-600 rounded-lg overflow-hidden shadow-lg">
+              <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-sm md:text-lg">
                 ⚽ Football
               </div>
             </div>
-            <div className="relative h-32 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg overflow-hidden shadow-lg">
-              <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg">
+            <div className="relative h-20 md:h-32 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg overflow-hidden shadow-lg">
+              <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-sm md:text-lg">
                 🏀 Basketball
               </div>
             </div>
-            <div className="relative h-32 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg overflow-hidden shadow-lg">
-              <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg">
+            <div className="relative h-20 md:h-32 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg overflow-hidden shadow-lg">
+              <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-sm md:text-lg">
                 🏸 Badminton
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Issue/Return Action Buttons - Visible to Everyone */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Dialog open={showIssueDialog} onOpenChange={setShowIssueDialog}>
+              <DialogTrigger asChild>
+                <Button className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 flex-1 sm:flex-none">
+                  <ArrowRight className="h-4 w-4 mr-2" />
+                  Issue Item
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-white max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Issue Sports Item</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="item">Select Item</Label>
+                    <Select onValueChange={(value) => setIssueForm({...issueForm, itemId: value})}>
+                      <SelectTrigger className="border-gray-300 focus:border-red-500">
+                        <SelectValue placeholder="Select item to issue" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {inventory.filter(item => item.available > 0).map(item => (
+                          <SelectItem key={item.id} value={item.id}>
+                            {item.name} (Available: {item.available})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="studentName">Student Name</Label>
+                    <Input
+                      id="studentName"
+                      value={issueForm.studentName}
+                      onChange={(e) => setIssueForm({...issueForm, studentName: e.target.value})}
+                      className="border-gray-300 focus:border-red-500"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="studentId">Roll Number</Label>
+                    <Input
+                      id="studentId"
+                      value={issueForm.studentId}
+                      onChange={(e) => setIssueForm({...issueForm, studentId: e.target.value})}
+                      className="border-gray-300 focus:border-red-500"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="roomNumber">Room Number</Label>
+                    <Input
+                      id="roomNumber"
+                      value={issueForm.roomNumber}
+                      onChange={(e) => setIssueForm({...issueForm, roomNumber: e.target.value})}
+                      className="border-gray-300 focus:border-red-500"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="notes">Notes (Optional)</Label>
+                    <Textarea
+                      id="notes"
+                      value={issueForm.notes}
+                      onChange={(e) => setIssueForm({...issueForm, notes: e.target.value})}
+                      className="border-gray-300 focus:border-red-500"
+                    />
+                  </div>
+                  <Button onClick={issueItem} className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
+                    Issue Item
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="border-blue-500 text-blue-600 hover:bg-blue-50 flex-1 sm:flex-none">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Return Item
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-white max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Return Sports Item</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="returnItem">Select Item to Return</Label>
+                    <Select onValueChange={(value) => setReturnForm({...returnForm, issueId: value})}>
+                      <SelectTrigger className="border-gray-300 focus:border-red-500">
+                        <SelectValue placeholder="Select issued item to return" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {issues.filter(issue => issue.status === 'issued').map(issue => (
+                          <SelectItem key={issue.id} value={issue.id}>
+                            {issue.itemName} - {issue.studentName} (Room: {issue.roomNumber})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="returnNotes">Return Notes (Optional)</Label>
+                    <Textarea
+                      id="returnNotes"
+                      value={returnForm.notes}
+                      onChange={(e) => setReturnForm({...returnForm, notes: e.target.value})}
+                      className="border-gray-300 focus:border-red-500"
+                      placeholder="Any damage or notes about the return..."
+                    />
+                  </div>
+                  <Button onClick={returnItem} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700">
+                    Return Item
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </div>
@@ -398,7 +545,7 @@ const Index = () => {
       {isLoggedIn && (
         <div className="bg-red-600 text-white shadow-lg">
           <div className="container mx-auto px-4 py-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <h2 className="text-lg font-bold">Admin Dashboard</h2>
               </div>
@@ -417,51 +564,51 @@ const Index = () => {
 
       {/* Stats Cards */}
       <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mb-6">
           <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg">
-            <CardContent className="p-4">
+            <CardContent className="p-3 md:p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm opacity-90">Total Items</p>
-                  <p className="text-2xl font-bold">{inventory.length}</p>
+                  <p className="text-xs md:text-sm opacity-90">Total Items</p>
+                  <p className="text-lg md:text-2xl font-bold">{inventory.length}</p>
                 </div>
-                <Package className="h-8 w-8 opacity-80" />
+                <Package className="h-6 w-6 md:h-8 md:w-8 opacity-80" />
               </div>
             </CardContent>
           </Card>
           
           <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg">
-            <CardContent className="p-4">
+            <CardContent className="p-3 md:p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm opacity-90">Available Items</p>
-                  <p className="text-2xl font-bold">{inventory.reduce((sum, item) => sum + item.available, 0)}</p>
+                  <p className="text-xs md:text-sm opacity-90">Available</p>
+                  <p className="text-lg md:text-2xl font-bold">{inventory.reduce((sum, item) => sum + item.available, 0)}</p>
                 </div>
-                <Trophy className="h-8 w-8 opacity-80" />
+                <Trophy className="h-6 w-6 md:h-8 md:w-8 opacity-80" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white shadow-lg">
-            <CardContent className="p-4">
+            <CardContent className="p-3 md:p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm opacity-90">Currently Issued</p>
-                  <p className="text-2xl font-bold">{issues.filter(i => i.status === 'issued').length}</p>
+                  <p className="text-xs md:text-sm opacity-90">Issued</p>
+                  <p className="text-lg md:text-2xl font-bold">{issues.filter(i => i.status === 'issued').length}</p>
                 </div>
-                <Users className="h-8 w-8 opacity-80" />
+                <Users className="h-6 w-6 md:h-8 md:w-8 opacity-80" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg">
-            <CardContent className="p-4">
+            <CardContent className="p-3 md:p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm opacity-90">Total Issues</p>
-                  <p className="text-2xl font-bold">{issues.length}</p>
+                  <p className="text-xs md:text-sm opacity-90">Total Issues</p>
+                  <p className="text-lg md:text-2xl font-bold">{issues.length}</p>
                 </div>
-                <Activity className="h-8 w-8 opacity-80" />
+                <Activity className="h-6 w-6 md:h-8 md:w-8 opacity-80" />
               </div>
             </CardContent>
           </Card>
@@ -475,8 +622,8 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="inventory" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-800">Sports Inventory</h2>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h2 className="text-xl md:text-2xl font-bold text-gray-800">Sports Inventory</h2>
               {isLoggedIn && (
                 <Dialog open={showAddItem} onOpenChange={setShowAddItem}>
                   <DialogTrigger asChild>
@@ -552,10 +699,10 @@ const Index = () => {
               {inventory.map((item) => (
                 <Card key={item.id} className="border-l-4 border-l-red-500 bg-white shadow-md">
                   <CardContent className="p-4">
-                    <div className="flex justify-between items-start">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold text-gray-800">{item.name}</h3>
-                        <div className="flex gap-4 mt-2 text-sm text-gray-600">
+                        <div className="flex flex-wrap gap-2 mt-2 text-sm text-gray-600">
                           <span>Category: <Badge variant="outline" className="border-red-200 text-red-700">{item.category}</Badge></span>
                           <span>Total: {item.quantity}</span>
                           <span>Available: <Badge variant={item.available > 0 ? "default" : "destructive"}>{item.available}</Badge></span>
@@ -563,25 +710,98 @@ const Index = () => {
                         </div>
                         <p className="text-xs text-gray-500 mt-1">Added: {item.addedDate}</p>
                       </div>
-                      {isLoggedIn && (
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditingItem(item)}
-                            className="border-gray-300 hover:bg-gray-50"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => deleteInventoryItem(item.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
+                      <div className="flex flex-wrap gap-2">
+                        {/* Issue Button for each item */}
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={item.available <= 0}
+                              className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 disabled:opacity-50"
+                            >
+                              <ArrowRight className="h-4 w-4 mr-1" />
+                              Issue
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="bg-white max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Issue {item.name}</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div className="p-3 bg-gray-50 rounded-lg">
+                                <p className="text-sm font-medium">Item: {item.name}</p>
+                                <p className="text-sm text-gray-600">Available: {item.available}</p>
+                              </div>
+                              <div>
+                                <Label htmlFor="studentName">Student Name</Label>
+                                <Input
+                                  id="studentName"
+                                  value={issueForm.studentName}
+                                  onChange={(e) => setIssueForm({...issueForm, studentName: e.target.value, itemId: item.id})}
+                                  className="border-gray-300 focus:border-red-500"
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="studentId">Roll Number</Label>
+                                <Input
+                                  id="studentId"
+                                  value={issueForm.studentId}
+                                  onChange={(e) => setIssueForm({...issueForm, studentId: e.target.value})}
+                                  className="border-gray-300 focus:border-red-500"
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="roomNumber">Room Number</Label>
+                                <Input
+                                  id="roomNumber"
+                                  value={issueForm.roomNumber}
+                                  onChange={(e) => setIssueForm({...issueForm, roomNumber: e.target.value})}
+                                  className="border-gray-300 focus:border-red-500"
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="notes">Notes (Optional)</Label>
+                                <Textarea
+                                  id="notes"
+                                  value={issueForm.notes}
+                                  onChange={(e) => setIssueForm({...issueForm, notes: e.target.value})}
+                                  className="border-gray-300 focus:border-red-500"
+                                />
+                              </div>
+                              <Button 
+                                onClick={() => {
+                                  setIssueForm({...issueForm, itemId: item.id});
+                                  issueItem();
+                                }} 
+                                className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                              >
+                                Issue {item.name}
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                        
+                        {isLoggedIn && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setEditingItem(item)}
+                              className="border-gray-300 hover:bg-gray-50"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => deleteInventoryItem(item.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -601,96 +821,38 @@ const Index = () => {
 
           <TabsContent value="issues" className="space-y-4">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-800">Issue & Return Management</h2>
-              {isLoggedIn && (
-                <Dialog open={showIssueDialog} onOpenChange={setShowIssueDialog}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Issue Item
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-white">
-                    <DialogHeader>
-                      <DialogTitle>Issue Sports Item</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="item">Select Item</Label>
-                        <Select onValueChange={(value) => setIssueForm({...issueForm, itemId: value})}>
-                          <SelectTrigger className="border-gray-300 focus:border-red-500">
-                            <SelectValue placeholder="Select item to issue" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {inventory.filter(item => item.available > 0).map(item => (
-                              <SelectItem key={item.id} value={item.id}>
-                                {item.name} (Available: {item.available})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="studentName">Student Name</Label>
-                        <Input
-                          id="studentName"
-                          value={issueForm.studentName}
-                          onChange={(e) => setIssueForm({...issueForm, studentName: e.target.value})}
-                          className="border-gray-300 focus:border-red-500"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="studentId">Student ID</Label>
-                        <Input
-                          id="studentId"
-                          value={issueForm.studentId}
-                          onChange={(e) => setIssueForm({...issueForm, studentId: e.target.value})}
-                          className="border-gray-300 focus:border-red-500"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="notes">Notes (Optional)</Label>
-                        <Textarea
-                          id="notes"
-                          value={issueForm.notes}
-                          onChange={(e) => setIssueForm({...issueForm, notes: e.target.value})}
-                          className="border-gray-300 focus:border-red-500"
-                        />
-                      </div>
-                      <Button onClick={issueItem} className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
-                        Issue Item
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              )}
+              <h2 className="text-xl md:text-2xl font-bold text-gray-800">Issue & Return Management</h2>
             </div>
 
             <div className="grid gap-4">
               {issues.map((issue) => (
                 <Card key={issue.id} className={`border-l-4 ${issue.status === 'issued' ? 'border-l-yellow-500' : 'border-l-green-500'} bg-white shadow-md`}>
                   <CardContent className="p-4">
-                    <div className="flex justify-between items-start">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold text-gray-800">{issue.itemName}</h3>
-                        <div className="flex gap-4 mt-2 text-sm text-gray-600">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 text-sm text-gray-600">
                           <span>Student: {issue.studentName}</span>
-                          <span>ID: {issue.studentId}</span>
+                          <span>Roll No: {issue.studentId}</span>
+                          <span>Room: {issue.roomNumber}</span>
                           <span>Issue Date: {issue.issueDate}</span>
                           {issue.returnDate && <span>Return Date: {issue.returnDate}</span>}
-                          <Badge variant={issue.status === 'issued' ? "default" : "secondary"}>
-                            {issue.status.toUpperCase()}
-                          </Badge>
+                          <span>
+                            <Badge variant={issue.status === 'issued' ? "default" : "secondary"}>
+                              {issue.status.toUpperCase()}
+                            </Badge>
+                          </span>
                         </div>
                         {issue.notes && <p className="text-sm text-gray-600 mt-1">Notes: {issue.notes}</p>}
                       </div>
-                      {issue.status === 'issued' && isLoggedIn && (
+                      {issue.status === 'issued' && (
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => returnItem(issue.id)}
+                          onClick={() => returnItemById(issue.id)}
                           className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
                         >
+                          <ArrowLeft className="h-4 w-4 mr-1" />
                           Mark Returned
                         </Button>
                       )}
@@ -704,7 +866,7 @@ const Index = () => {
                   <CardContent className="p-8 text-center">
                     <Activity className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                     <p className="text-gray-600">No items have been issued yet.</p>
-                    {isLoggedIn && <p className="text-sm text-gray-500 mt-2">Start issuing equipment using the "Issue Item" button above.</p>}
+                    <p className="text-sm text-gray-500 mt-2">Start issuing equipment using the "Issue Item" button above.</p>
                   </CardContent>
                 </Card>
               )}
@@ -716,8 +878,8 @@ const Index = () => {
       {/* Footer */}
       <div className="bg-gradient-to-r from-red-600 to-orange-600 text-white p-6 mt-12">
         <div className="text-center">
-          <p className="text-2xl font-bold mb-2">🔥 HALL 3 KA TEMPO HIGH HAI 🔥</p>
-          <p className="text-sm opacity-80">Website created by Sanjay Khara (Y23), all rights are reserved to him.</p>
+          <p className="text-xl md:text-2xl font-bold mb-2">🔥 HALL 3 KA TEMPO HIGH HAI 🔥</p>
+          <p className="text-xs md:text-sm opacity-80">Website created by Sanjay Khara (Y23), all rights are reserved to him.</p>
         </div>
       </div>
     </div>
