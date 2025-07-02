@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -559,28 +560,19 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section with Logo */}
-      <div className="relative h-48 md:h-64 bg-gradient-to-r from-slate-100 to-gray-100 border-b-4 border-red-500">
+      <div className="relative h-56 md:h-72 bg-gradient-to-r from-slate-100 to-gray-100 border-b-4 border-red-500">
+        {/* Logo - Centered and Enlarged */}
         <img 
           src="/lovable-uploads/5b532a8c-4c79-4972-b351-f890ab065309.png" 
           alt="Hall-3 Sports Logo" 
-          className="absolute top-2 md:top-4 lg:top-8 left-1/2 transform -translate-x-1/2 h-8 w-8 md:h-12 md:w-12 lg:h-16 lg:w-16 object-contain z-10"
+          className="absolute top-3 md:top-6 left-1/2 transform -translate-x-1/2 h-12 w-12 md:h-20 md:w-20 lg:h-24 lg:w-24 object-contain z-10"
         />
-        <div className="relative z-10 flex items-center justify-center h-full">
-          <div className="text-center text-gray-800 mt-4 md:mt-8 lg:mt-12 px-4">
-            <h1 className="text-lg md:text-3xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
-              Hall-3 Sports Inventory Tracker
-            </h1>
-            <p className="text-xs md:text-lg lg:text-xl font-semibold text-gray-600">
-              Sports Equipment Management System
-            </p>
-          </div>
-        </div>
         
-        {/* User/Admin Controls - Top Right */}
-        <div className="absolute top-2 md:top-4 right-2 md:right-4 z-20 flex flex-col gap-2">
-          {/* Student Auth Buttons */}
-          {!currentUser && !isLoggedIn && (
-            <div className="flex gap-2">
+        {/* Student Auth Buttons - Top Corners */}
+        {!currentUser && !isLoggedIn && (
+          <>
+            {/* Sign Up - Left Corner */}
+            <div className="absolute top-2 md:top-4 left-2 md:left-4 z-20">
               <Button 
                 onClick={() => setShowSignup(true)}
                 variant="outline" 
@@ -590,6 +582,10 @@ const Index = () => {
                 <UserPlus className="h-3 w-3 mr-1" />
                 Sign Up
               </Button>
+            </div>
+            
+            {/* Sign In - Right Corner */}
+            <div className="absolute top-2 md:top-4 right-2 md:right-4 z-20">
               <Button 
                 onClick={() => setShowUserSignin(true)}
                 variant="outline" 
@@ -600,10 +596,12 @@ const Index = () => {
                 Sign In
               </Button>
             </div>
-          )}
+          </>
+        )}
 
-          {/* Current User Profile */}
-          {currentUser && (
+        {/* Current User Profile - Top Right when logged in */}
+        {currentUser && (
+          <div className="absolute top-2 md:top-4 right-2 md:right-4 z-20">
             <Button 
               onClick={() => setShowUserProfile(true)}
               variant="outline" 
@@ -613,185 +611,200 @@ const Index = () => {
               <User className="h-3 w-3 mr-1" />
               {currentUser.name}
             </Button>
-          )}
+          </div>
+        )}
+        
+        {/* Main Title and Subtitle */}
+        <div className="relative z-10 flex flex-col items-center justify-center h-full pt-16 md:pt-24">
+          <div className="text-center text-gray-800 px-4">
+            <h1 className="text-lg md:text-3xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+              Hall-3 Sports Inventory Tracker
+            </h1>
+            <p className="text-xs md:text-lg lg:text-xl font-semibold text-gray-600 mb-4">
+              Sports Equipment Management System
+            </p>
+            
+            {/* Admin Button - Below Subtitle */}
+            <div className="flex justify-center">
+              {!isLoggedIn ? (
+                <Dialog open={showLogin} onOpenChange={setShowLogin}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="bg-white border-red-500 text-red-600 hover:bg-red-50 shadow-lg text-xs"
+                    >
+                      <Shield className="h-3 w-3 mr-1" />
+                      Admin Login
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-white">
+                    <DialogHeader>
+                      <DialogTitle className="text-center text-red-600 text-xl font-bold flex items-center justify-center gap-2">
+                        <LogIn className="h-6 w-6" />
+                        Admin Login
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 p-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="border-gray-300 focus:border-red-500"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <Input
+                          id="password"
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="border-gray-300 focus:border-red-500"
+                          onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                        />
+                      </div>
+                      <Button 
+                        onClick={handleLogin} 
+                        className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
+                      >
+                        Login as Admin
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              ) : (
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Badge variant="default" className="bg-green-600 text-white text-xs">Admin</Badge>
+                  
+                  <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-white border-purple-500 text-purple-600 hover:bg-purple-50"
+                      >
+                        <Upload className="h-3 w-3 mr-1" />
+                        Upload
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-white">
+                      <DialogHeader>
+                        <DialogTitle>Upload Student List</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="excel-file">Upload Excel/CSV File</Label>
+                          <Input
+                            id="excel-file"
+                            type="file"
+                            accept=".csv,.xlsx,.xls"
+                            onChange={handleExcelUpload}
+                            className="border-gray-300 focus:border-red-500"
+                          />
+                          <p className="text-xs text-gray-500 mt-2">
+                            Upload CSV with columns: Roll Number, Student Name
+                          </p>
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          <p>Current authorized students: <Badge>{authorizedStudents.length}</Badge></p>
+                          <p>Registered users: <Badge>{users.length}</Badge></p>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  
+                  <Dialog open={showNotifications} onOpenChange={setShowNotifications}>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-white border-blue-500 text-blue-600 hover:bg-blue-50 relative"
+                      >
+                        <Bell className="h-3 w-3" />
+                        {unreadNotifications > 0 && (
+                          <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 text-xs bg-red-500">
+                            {unreadNotifications}
+                          </Badge>
+                        )}
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-white max-w-md max-h-96 overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Notifications</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-2">
+                        {notifications.length === 0 ? (
+                          <p className="text-gray-500 text-center py-4">No notifications</p>
+                        ) : (
+                          notifications.map((notification) => (
+                            <div
+                              key={notification.id}
+                              className={`p-3 rounded-lg border ${notification.read ? 'bg-gray-50' : 'bg-blue-50 border-blue-200'} relative`}
+                            >
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="absolute top-1 right-1 h-6 w-6 p-0"
+                                onClick={() => removeNotification(notification.id)}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                              <div onClick={() => markNotificationAsRead(notification.id)}>
+                                <p className="text-sm font-medium pr-6">{notification.message}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {new Date(notification.timestamp).toLocaleString()}
+                                </p>
+                                {notification.type === 'return_request' && notification.data && (
+                                  <div className="flex gap-2 mt-2">
+                                    <Button
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        approveReturnRequest(notification.data.returnRequest.id);
+                                      }}
+                                      className="bg-green-500 hover:bg-green-600"
+                                    >
+                                      <Check className="h-3 w-3 mr-1" />
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        rejectReturnRequest(notification.data.returnRequest.id);
+                                      }}
+                                    >
+                                      <X className="h-3 w-3 mr-1" />
+                                      Reject
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
 
-          {/* Admin Login/Controls */}
-          {!isLoggedIn ? (
-            <Dialog open={showLogin} onOpenChange={setShowLogin}>
-              <DialogTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="bg-white border-red-500 text-red-600 hover:bg-red-50 shadow-lg text-xs"
-                >
-                  <Shield className="h-3 w-3 mr-1" />
-                  Admin
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-white">
-                <DialogHeader>
-                  <DialogTitle className="text-center text-red-600 text-xl font-bold flex items-center justify-center gap-2">
-                    <LogIn className="h-6 w-6" />
-                    Admin Login
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 p-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="border-gray-300 focus:border-red-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="border-gray-300 focus:border-red-500"
-                      onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                    />
-                  </div>
-                  <Button 
-                    onClick={handleLogin} 
-                    className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
+                  <Button
+                    onClick={handleLogout}
+                    variant="outline"
+                    size="sm"
+                    className="bg-white border-red-500 text-red-600 hover:bg-red-50 text-xs"
                   >
-                    Login as Admin
+                    <LogOut className="h-3 w-3 mr-1" />
+                    Logout
                   </Button>
                 </div>
-              </DialogContent>
-            </Dialog>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Badge variant="default" className="bg-green-600 text-white text-xs">Admin</Badge>
-              
-              <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-white border-purple-500 text-purple-600 hover:bg-purple-50"
-                  >
-                    <Upload className="h-3 w-3" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-white">
-                  <DialogHeader>
-                    <DialogTitle>Upload Student List</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="excel-file">Upload Excel/CSV File</Label>
-                      <Input
-                        id="excel-file"
-                        type="file"
-                        accept=".csv,.xlsx,.xls"
-                        onChange={handleExcelUpload}
-                        className="border-gray-300 focus:border-red-500"
-                      />
-                      <p className="text-xs text-gray-500 mt-2">
-                        Upload CSV with columns: Roll Number, Student Name
-                      </p>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      <p>Current authorized students: <Badge>{authorizedStudents.length}</Badge></p>
-                      <p>Registered users: <Badge>{users.length}</Badge></p>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-              
-              <Dialog open={showNotifications} onOpenChange={setShowNotifications}>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-white border-blue-500 text-blue-600 hover:bg-blue-50 relative"
-                  >
-                    <Bell className="h-3 w-3" />
-                    {unreadNotifications > 0 && (
-                      <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 text-xs bg-red-500">
-                        {unreadNotifications}
-                      </Badge>
-                    )}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-white max-w-md max-h-96 overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Notifications</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-2">
-                    {notifications.length === 0 ? (
-                      <p className="text-gray-500 text-center py-4">No notifications</p>
-                    ) : (
-                      notifications.map((notification) => (
-                        <div
-                          key={notification.id}
-                          className={`p-3 rounded-lg border ${notification.read ? 'bg-gray-50' : 'bg-blue-50 border-blue-200'} relative`}
-                        >
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="absolute top-1 right-1 h-6 w-6 p-0"
-                            onClick={() => removeNotification(notification.id)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                          <div onClick={() => markNotificationAsRead(notification.id)}>
-                            <p className="text-sm font-medium pr-6">{notification.message}</p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {new Date(notification.timestamp).toLocaleString()}
-                            </p>
-                            {notification.type === 'return_request' && notification.data && (
-                              <div className="flex gap-2 mt-2">
-                                <Button
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    approveReturnRequest(notification.data.returnRequest.id);
-                                  }}
-                                  className="bg-green-500 hover:bg-green-600"
-                                >
-                                  <Check className="h-3 w-3 mr-1" />
-                                  Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    rejectReturnRequest(notification.data.returnRequest.id);
-                                  }}
-                                >
-                                  <X className="h-3 w-3 mr-1" />
-                                  Reject
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              <Button
-                onClick={handleLogout}
-                variant="outline"
-                size="sm"
-                className="bg-white border-red-500 text-red-600 hover:bg-red-50 text-xs"
-              >
-                <LogOut className="h-3 w-3 mr-1" />
-                Logout
-              </Button>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
 
