@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft, Bell, Check, X, Phone } from 'lucide-react';
+import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft, Bell, Check, X, Phone, Upload } from 'lucide-react';
 
 interface InventoryItem {
   id: string;
@@ -53,6 +53,11 @@ interface Notification {
   data?: any;
 }
 
+interface AuthorizedStudent {
+  rollNumber: string;
+  name: string;
+}
+
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -62,11 +67,13 @@ const Index = () => {
   const [issues, setIssues] = useState<IssueRecord[]>([]);
   const [returnRequests, setReturnRequests] = useState<ReturnRequest[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [authorizedStudents, setAuthorizedStudents] = useState<AuthorizedStudent[]>([]);
   const [activeTab, setActiveTab] = useState('inventory');
   const [showAddItem, setShowAddItem] = useState(false);
   const [showIssueDialog, setShowIssueDialog] = useState(false);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const { toast } = useToast();
 
@@ -98,6 +105,7 @@ const Index = () => {
     const savedIssues = localStorage.getItem('hall3-issues');
     const savedReturnRequests = localStorage.getItem('hall3-return-requests');
     const savedNotifications = localStorage.getItem('hall3-notifications');
+    const savedAuthorizedStudents = localStorage.getItem('hall3-authorized-students');
     const savedAuth = localStorage.getItem('hall3-auth');
 
     if (savedInventory) {
@@ -111,6 +119,9 @@ const Index = () => {
     }
     if (savedNotifications) {
       setNotifications(JSON.parse(savedNotifications));
+    }
+    if (savedAuthorizedStudents) {
+      setAuthorizedStudents(JSON.parse(savedAuthorizedStudents));
     }
     if (savedAuth === 'true') {
       setIsLoggedIn(true);
@@ -177,6 +188,47 @@ const Index = () => {
     });
   };
 
+  const handleExcelUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n');
+      const students: AuthorizedStudent[] = [];
+
+      // Skip header row and process data
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line) {
+          const [rollNumber, name] = line.split(',').map(item => item.trim().replace(/"/g, ''));
+          if (rollNumber && name) {
+            students.push({ rollNumber, name });
+          }
+        }
+      }
+
+      setAuthorizedStudents(students);
+      localStorage.setItem('hall3-authorized-students', JSON.stringify(students));
+      setShowUploadDialog(false);
+      
+      toast({
+        title: "Student List Uploaded",
+        description: `${students.length} authorized students loaded successfully.`,
+      });
+    };
+    reader.readAsText(file);
+  };
+
+  const isStudentAuthorized = (rollNumber: string, studentName: string) => {
+    if (authorizedStudents.length === 0) return true; // If no list uploaded, allow all
+    return authorizedStudents.some(student => 
+      student.rollNumber.toLowerCase() === rollNumber.toLowerCase() && 
+      student.name.toLowerCase() === studentName.toLowerCase()
+    );
+  };
+
   const addInventoryItem = () => {
     if (!newItem.name || !newItem.category || newItem.quantity <= 0) {
       toast({
@@ -236,6 +288,16 @@ const Index = () => {
       toast({
         title: "Error",
         description: "Please enter a valid 10-digit phone number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if student is authorized
+    if (!isStudentAuthorized(issueForm.studentId, issueForm.studentName)) {
+      toast({
+        title: "Access Denied",
+        description: "Student not found in authorized list. Please contact admin.",
         variant: "destructive",
       });
       return;
@@ -453,6 +515,13 @@ const Index = () => {
 
   const unreadNotifications = notifications.filter(n => !n.read).length;
 
+  // Sort issues by latest first (most recent issue date first)
+  const sortedIssues = [...issues].sort((a, b) => {
+    const dateA = new Date(a.issueDate + 'T00:00:00');
+    const dateB = new Date(b.issueDate + 'T00:00:00');
+    return dateB.getTime() - dateA.getTime();
+  });
+
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section with Logo */}
@@ -460,14 +529,14 @@ const Index = () => {
         <img 
           src="/lovable-uploads/5b532a8c-4c79-4972-b351-f890ab065309.png" 
           alt="Hall-3 Sports Logo" 
-          className="absolute top-8 md:top-16 left-1/2 transform -translate-x-1/2 h-16 w-16 md:h-20 md:w-20 object-contain z-10"
+          className="absolute top-4 md:top-8 lg:top-16 left-1/2 transform -translate-x-1/2 h-12 w-12 md:h-16 md:w-16 lg:h-20 lg:w-20 object-contain z-10"
         />
         <div className="relative z-10 flex items-center justify-center h-full">
-          <div className="text-center text-gray-800 mt-12 md:mt-16 px-4">
-            <h1 className="text-2xl md:text-4xl lg:text-6xl font-bold mb-2 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+          <div className="text-center text-gray-800 mt-8 md:mt-12 lg:mt-16 px-4">
+            <h1 className="text-xl md:text-4xl lg:text-6xl font-bold mb-2 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
               Hall-3 Sports Inventory Tracker
             </h1>
-            <p className="text-sm md:text-xl lg:text-2xl font-semibold text-gray-600">
+            <p className="text-xs md:text-xl lg:text-2xl font-semibold text-gray-600">
               Sports Equipment Management System
             </p>
           </div>
@@ -528,6 +597,42 @@ const Index = () => {
           ) : (
             <div className="flex items-center gap-2">
               <Badge variant="default" className="bg-green-600 text-white text-xs">Admin</Badge>
+              
+              {/* Upload Students Button */}
+              <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-white border-purple-500 text-purple-600 hover:bg-purple-50"
+                  >
+                    <Upload className="h-3 w-3 md:h-4 md:w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-white">
+                  <DialogHeader>
+                    <DialogTitle>Upload Student List</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="excel-file">Upload Excel/CSV File</Label>
+                      <Input
+                        id="excel-file"
+                        type="file"
+                        accept=".csv,.xlsx,.xls"
+                        onChange={handleExcelUpload}
+                        className="border-gray-300 focus:border-red-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        Upload CSV with columns: Roll Number, Student Name
+                      </p>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      <p>Current authorized students: <Badge>{authorizedStudents.length}</Badge></p>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
               
               {/* Notifications Button */}
               <Dialog open={showNotifications} onOpenChange={setShowNotifications}>
@@ -1052,7 +1157,7 @@ const Index = () => {
             </div>
 
             <div className="grid gap-4">
-              {issues.map((issue) => (
+              {sortedIssues.map((issue) => (
                 <Card key={issue.id} className={`border-l-4 ${issue.status === 'issued' ? 'border-l-yellow-500' : 'border-l-green-500'} bg-white shadow-md`}>
                   <CardContent className="p-4">
                     <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
