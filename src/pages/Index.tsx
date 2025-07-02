@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -146,7 +147,7 @@ const Index = () => {
   };
 
   const handleLogin = () => {
-    if (email === 'sanjaykhara9876@gmail.com' && password === 'bakchodHall3') {
+    if (email === 'sanjaykhara9876@gmail.com' && password === 'Hall3isbest') {
       setIsLoggedIn(true);
       localStorage.setItem('hall3-auth', 'true');
       setShowLogin(false);
@@ -459,7 +460,7 @@ const Index = () => {
         <img 
           src="/lovable-uploads/5b532a8c-4c79-4972-b351-f890ab065309.png" 
           alt="Hall-3 Sports Logo" 
-          className="absolute top-6 md:top-12 left-1/2 transform -translate-x-1/2 h-16 w-16 md:h-24 md:w-24 object-contain z-10"
+          className="absolute top-8 md:top-16 left-1/2 transform -translate-x-1/2 h-16 w-16 md:h-20 md:w-20 object-contain z-10"
         />
         <div className="relative z-10 flex items-center justify-center h-full">
           <div className="text-center text-gray-800 mt-12 md:mt-16 px-4">
@@ -555,39 +556,48 @@ const Index = () => {
                       notifications.map((notification) => (
                         <div
                           key={notification.id}
-                          className={`p-3 rounded-lg border ${notification.read ? 'bg-gray-50' : 'bg-blue-50 border-blue-200'}`}
-                          onClick={() => markNotificationAsRead(notification.id)}
+                          className={`p-3 rounded-lg border ${notification.read ? 'bg-gray-50' : 'bg-blue-50 border-blue-200'} relative`}
                         >
-                          <p className="text-sm font-medium">{notification.message}</p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {new Date(notification.timestamp).toLocaleString()}
-                          </p>
-                          {notification.type === 'return_request' && notification.data && (
-                            <div className="flex gap-2 mt-2">
-                              <Button
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  approveReturnRequest(notification.data.returnRequest.id);
-                                }}
-                                className="bg-green-500 hover:bg-green-600"
-                              >
-                                <Check className="h-3 w-3 mr-1" />
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  rejectReturnRequest(notification.data.returnRequest.id);
-                                }}
-                              >
-                                <X className="h-3 w-3 mr-1" />
-                                Reject
-                              </Button>
-                            </div>
-                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="absolute top-1 right-1 h-6 w-6 p-0"
+                            onClick={() => removeNotification(notification.id)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                          <div onClick={() => markNotificationAsRead(notification.id)}>
+                            <p className="text-sm font-medium pr-6">{notification.message}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {new Date(notification.timestamp).toLocaleString()}
+                            </p>
+                            {notification.type === 'return_request' && notification.data && (
+                              <div className="flex gap-2 mt-2">
+                                <Button
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    approveReturnRequest(notification.data.returnRequest.id);
+                                  }}
+                                  className="bg-green-500 hover:bg-green-600"
+                                >
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    rejectReturnRequest(notification.data.returnRequest.id);
+                                  }}
+                                >
+                                  <X className="h-3 w-3 mr-1" />
+                                  Reject
+                                </Button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))
                     )}
@@ -955,6 +965,20 @@ const Index = () => {
                                 />
                               </div>
                               <div>
+                                <Label htmlFor="phoneNumber">Phone Number</Label>
+                                <div className="relative">
+                                  <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                  <Input
+                                    id="phoneNumber"
+                                    value={issueForm.phoneNumber}
+                                    onChange={(e) => setIssueForm({...issueForm, phoneNumber: e.target.value})}
+                                    className="border-gray-300 focus:border-red-500 pl-10"
+                                    placeholder="10-digit phone number"
+                                    maxLength={10}
+                                  />
+                                </div>
+                              </div>
+                              <div>
                                 <Label htmlFor="roomNumber">Room Number</Label>
                                 <Input
                                   id="roomNumber"
@@ -1038,6 +1062,7 @@ const Index = () => {
                           <span>Student: {issue.studentName}</span>
                           <span>Roll No: {issue.studentId}</span>
                           <span>Room: {issue.roomNumber}</span>
+                          <span>Phone: {issue.phoneNumber}</span>
                           <span>Issue Date: {issue.issueDate}</span>
                           {issue.returnDate && <span>Return Date: {issue.returnDate}</span>}
                           <span>
@@ -1071,7 +1096,7 @@ const Index = () => {
       <div className="bg-gradient-to-r from-red-600 to-orange-600 text-white p-6 mt-12">
         <div className="text-center">
           <p className="text-xl md:text-2xl font-bold mb-2">🔥 HALL 3 KA TEMPO HIGH HAI 🔥</p>
-          <p className="text-xs md:text-sm opacity-80">Website created by Sanjay Khara (Y23), all rights are reserved to him.</p>
+          <p className="text-xs md:text-sm opacity-80">Website created by Sanjay Khara (Y23). All rights reserved</p>
         </div>
       </div>
     </div>
