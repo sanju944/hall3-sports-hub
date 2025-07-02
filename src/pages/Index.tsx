@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft, Bell, Check, X, Phone, Upload } from 'lucide-react';
+import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft, Bell, Check, X, Phone, Upload, UserPlus, User } from 'lucide-react';
+import UserSignup from '@/components/UserSignup';
+import UserSignin from '@/components/UserSignin';
+import UserProfile from '@/components/UserProfile';
 
 interface InventoryItem {
   id: string;
@@ -58,9 +60,23 @@ interface AuthorizedStudent {
   name: string;
 }
 
+interface User {
+  id: string;
+  rollNumber: string;
+  name: string;
+  phoneNumber: string;
+  roomNumber: string;
+  password: string;
+  registeredDate: string;
+}
+
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showLogin, setShowLogin] = useState(false);
+  const [showSignup, setShowSignup] = useState(false);
+  const [showUserSignin, setShowUserSignin] = useState(false);
+  const [showUserProfile, setShowUserProfile] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -68,6 +84,7 @@ const Index = () => {
   const [returnRequests, setReturnRequests] = useState<ReturnRequest[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [authorizedStudents, setAuthorizedStudents] = useState<AuthorizedStudent[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [activeTab, setActiveTab] = useState('inventory');
   const [showAddItem, setShowAddItem] = useState(false);
   const [showIssueDialog, setShowIssueDialog] = useState(false);
@@ -87,10 +104,6 @@ const Index = () => {
 
   const [issueForm, setIssueForm] = useState({
     itemId: '',
-    studentName: '',
-    studentId: '',
-    roomNumber: '',
-    phoneNumber: '',
     notes: ''
   });
 
@@ -106,7 +119,9 @@ const Index = () => {
     const savedReturnRequests = localStorage.getItem('hall3-return-requests');
     const savedNotifications = localStorage.getItem('hall3-notifications');
     const savedAuthorizedStudents = localStorage.getItem('hall3-authorized-students');
+    const savedUsers = localStorage.getItem('hall3-users');
     const savedAuth = localStorage.getItem('hall3-auth');
+    const savedCurrentUser = localStorage.getItem('hall3-current-user');
 
     if (savedInventory) {
       setInventory(JSON.parse(savedInventory));
@@ -123,8 +138,14 @@ const Index = () => {
     if (savedAuthorizedStudents) {
       setAuthorizedStudents(JSON.parse(savedAuthorizedStudents));
     }
+    if (savedUsers) {
+      setUsers(JSON.parse(savedUsers));
+    }
     if (savedAuth === 'true') {
       setIsLoggedIn(true);
+    }
+    if (savedCurrentUser) {
+      setCurrentUser(JSON.parse(savedCurrentUser));
     }
   }, []);
 
@@ -188,6 +209,41 @@ const Index = () => {
     });
   };
 
+  const handleUserLogin = (user: User) => {
+    setCurrentUser(user);
+    localStorage.setItem('hall3-current-user', JSON.stringify(user));
+  };
+
+  const handleUserLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('hall3-current-user');
+    setShowUserProfile(false);
+    toast({
+      title: "Logged Out",
+      description: "You have been logged out successfully.",
+    });
+  };
+
+  const handleUserRegister = (user: User) => {
+    const updatedUsers = [...users, user];
+    setUsers(updatedUsers);
+    localStorage.setItem('hall3-users', JSON.stringify(updatedUsers));
+  };
+
+  const handlePasswordChange = (userId: string, newPassword: string) => {
+    const updatedUsers = users.map(u => 
+      u.id === userId ? { ...u, password: newPassword } : u
+    );
+    setUsers(updatedUsers);
+    localStorage.setItem('hall3-users', JSON.stringify(updatedUsers));
+
+    if (currentUser && currentUser.id === userId) {
+      const updatedCurrentUser = { ...currentUser, password: newPassword };
+      setCurrentUser(updatedCurrentUser);
+      localStorage.setItem('hall3-current-user', JSON.stringify(updatedCurrentUser));
+    }
+  };
+
   const handleExcelUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -198,7 +254,6 @@ const Index = () => {
       const lines = text.split('\n');
       const students: AuthorizedStudent[] = [];
 
-      // Skip header row and process data
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (line) {
@@ -274,30 +329,10 @@ const Index = () => {
   };
 
   const issueItem = () => {
-    if (!issueForm.itemId || !issueForm.studentName || !issueForm.studentId || !issueForm.roomNumber || !issueForm.phoneNumber) {
+    if (!issueForm.itemId || !currentUser) {
       toast({
         title: "Error",
-        description: "Please fill all required fields including phone number.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate phone number (basic validation)
-    if (!/^\d{10}$/.test(issueForm.phoneNumber)) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid 10-digit phone number.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check if student is authorized
-    if (!isStudentAuthorized(issueForm.studentId, issueForm.studentName)) {
-      toast({
-        title: "Access Denied",
-        description: "Student not found in authorized list. Please contact admin.",
+        description: "Please select an item and make sure you're logged in.",
         variant: "destructive",
       });
       return;
@@ -317,16 +352,15 @@ const Index = () => {
       id: Date.now().toString(),
       itemId: issueForm.itemId,
       itemName: item.name,
-      studentName: issueForm.studentName,
-      studentId: issueForm.studentId,
-      roomNumber: issueForm.roomNumber,
-      phoneNumber: issueForm.phoneNumber,
+      studentName: currentUser.name,
+      studentId: currentUser.rollNumber,
+      roomNumber: currentUser.roomNumber,
+      phoneNumber: currentUser.phoneNumber,
       issueDate: new Date().toISOString().split('T')[0],
       status: 'issued',
       notes: issueForm.notes
     };
 
-    // Update inventory availability
     const updatedInventory = inventory.map(i => 
       i.id === issueForm.itemId 
         ? { ...i, available: i.available - 1 }
@@ -340,23 +374,22 @@ const Index = () => {
     localStorage.setItem('hall3-inventory', JSON.stringify(updatedInventory));
     localStorage.setItem('hall3-issues', JSON.stringify(updatedIssues));
 
-    // Add notification for admin
-    addNotification('issue', `New item issued: ${item.name} to ${issueForm.studentName} (${issueForm.studentId})`, issue);
+    addNotification('issue', `New item issued: ${item.name} to ${currentUser.name} (${currentUser.rollNumber})`, issue);
 
-    setIssueForm({ itemId: '', studentName: '', studentId: '', roomNumber: '', phoneNumber: '', notes: '' });
+    setIssueForm({ itemId: '', notes: '' });
     setShowIssueDialog(false);
 
     toast({
       title: "Item Issued",
-      description: `${item.name} issued to ${issueForm.studentName}`,
+      description: `${item.name} issued successfully`,
     });
   };
 
   const requestReturn = () => {
-    if (!returnForm.issueId) {
+    if (!returnForm.issueId || !currentUser) {
       toast({
         title: "Error",
-        description: "Please select an item to return.",
+        description: "Please select an item and make sure you're logged in.",
         variant: "destructive",
       });
       return;
@@ -377,7 +410,6 @@ const Index = () => {
     setReturnRequests(updatedReturnRequests);
     localStorage.setItem('hall3-return-requests', JSON.stringify(updatedReturnRequests));
 
-    // Add notification for admin
     addNotification('return_request', `Return request for ${issue.itemName} by ${issue.studentName} (${issue.studentId})`, { issue, returnRequest });
 
     setReturnForm({ issueId: '', notes: '' });
@@ -396,19 +428,16 @@ const Index = () => {
     const issue = issues.find(i => i.id === returnRequest.issueId);
     if (!issue) return;
 
-    // Update return request status
     const updatedReturnRequests = returnRequests.map(r => 
       r.id === requestId ? { ...r, status: 'approved' as const } : r
     );
 
-    // Update issue status
     const updatedIssues = issues.map(i => 
       i.id === returnRequest.issueId 
         ? { ...i, status: 'returned' as const, returnDate: new Date().toISOString().split('T')[0] }
         : i
     );
 
-    // Update inventory availability (ensure it doesn't exceed total quantity)
     const updatedInventory = inventory.map(i => {
       if (i.id === issue.itemId) {
         const newAvailable = Math.min(i.available + 1, i.quantity);
@@ -425,7 +454,6 @@ const Index = () => {
     localStorage.setItem('hall3-issues', JSON.stringify(updatedIssues));
     localStorage.setItem('hall3-inventory', JSON.stringify(updatedInventory));
 
-    // Remove the notification after approval
     const notificationToRemove = notifications.find(n => 
       n.data?.returnRequest?.id === requestId
     );
@@ -446,7 +474,6 @@ const Index = () => {
     setReturnRequests(updatedReturnRequests);
     localStorage.setItem('hall3-return-requests', JSON.stringify(updatedReturnRequests));
 
-    // Remove the notification after rejection
     const notificationToRemove = notifications.find(n => 
       n.data?.returnRequest?.id === requestId
     );
@@ -462,7 +489,6 @@ const Index = () => {
 
   const exportToExcel = () => {
     const csvContent = [
-      // Inventory Header
       ['INVENTORY DATA'],
       ['Item Name', 'Category', 'Total Quantity', 'Available', 'Condition', 'Added Date'],
       ...inventory.map(item => [
@@ -474,7 +500,6 @@ const Index = () => {
         item.addedDate
       ]),
       [''],
-      // Issues Header
       ['ISSUE/RETURN DATA'],
       ['Item Name', 'Student Name', 'Student ID', 'Room Number', 'Phone Number', 'Issue Date', 'Return Date', 'Status', 'Notes'],
       ...issues.map(issue => [
@@ -487,6 +512,16 @@ const Index = () => {
         issue.returnDate || 'Not Returned',
         issue.status,
         issue.notes || ''
+      ]),
+      [''],
+      ['REGISTERED USERS DATA'],
+      ['Roll Number', 'Name', 'Phone Number', 'Room Number', 'Registration Date'],
+      ...users.map(user => [
+        user.rollNumber,
+        user.name,
+        user.phoneNumber,
+        user.roomNumber,
+        user.registeredDate
       ])
     ];
 
@@ -501,13 +536,12 @@ const Index = () => {
 
     toast({
       title: "Data Exported",
-      description: "Inventory data has been exported to CSV file.",
+      description: "All data has been exported to CSV file.",
     });
   };
 
-  const getUserIssues = (studentName: string, studentId: string) => {
+  const getUserIssues = (studentId: string) => {
     return issues.filter(issue => 
-      issue.studentName === studentName && 
       issue.studentId === studentId && 
       issue.status === 'issued'
     );
@@ -529,31 +563,69 @@ const Index = () => {
         <img 
           src="/lovable-uploads/5b532a8c-4c79-4972-b351-f890ab065309.png" 
           alt="Hall-3 Sports Logo" 
-          className="absolute top-4 md:top-8 lg:top-16 left-1/2 transform -translate-x-1/2 h-12 w-12 md:h-16 md:w-16 lg:h-20 lg:w-20 object-contain z-10"
+          className="absolute top-2 md:top-4 lg:top-8 left-1/2 transform -translate-x-1/2 h-8 w-8 md:h-12 md:w-12 lg:h-16 lg:w-16 object-contain z-10"
         />
         <div className="relative z-10 flex items-center justify-center h-full">
-          <div className="text-center text-gray-800 mt-8 md:mt-12 lg:mt-16 px-4">
-            <h1 className="text-xl md:text-4xl lg:text-6xl font-bold mb-2 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+          <div className="text-center text-gray-800 mt-4 md:mt-8 lg:mt-12 px-4">
+            <h1 className="text-lg md:text-3xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
               Hall-3 Sports Inventory Tracker
             </h1>
-            <p className="text-xs md:text-xl lg:text-2xl font-semibold text-gray-600">
+            <p className="text-xs md:text-lg lg:text-xl font-semibold text-gray-600">
               Sports Equipment Management System
             </p>
           </div>
         </div>
         
-        {/* Admin Login Button - Top Right */}
-        <div className="absolute top-2 md:top-4 right-2 md:right-4 z-20">
+        {/* User/Admin Controls - Top Right */}
+        <div className="absolute top-2 md:top-4 right-2 md:right-4 z-20 flex flex-col gap-2">
+          {/* Student Auth Buttons */}
+          {!currentUser && !isLoggedIn && (
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => setShowSignup(true)}
+                variant="outline" 
+                size="sm"
+                className="bg-white border-green-500 text-green-600 hover:bg-green-50 shadow-lg text-xs"
+              >
+                <UserPlus className="h-3 w-3 mr-1" />
+                Sign Up
+              </Button>
+              <Button 
+                onClick={() => setShowUserSignin(true)}
+                variant="outline" 
+                size="sm"
+                className="bg-white border-blue-500 text-blue-600 hover:bg-blue-50 shadow-lg text-xs"
+              >
+                <LogIn className="h-3 w-3 mr-1" />
+                Sign In
+              </Button>
+            </div>
+          )}
+
+          {/* Current User Profile */}
+          {currentUser && (
+            <Button 
+              onClick={() => setShowUserProfile(true)}
+              variant="outline" 
+              size="sm"
+              className="bg-white border-purple-500 text-purple-600 hover:bg-purple-50 shadow-lg text-xs"
+            >
+              <User className="h-3 w-3 mr-1" />
+              {currentUser.name}
+            </Button>
+          )}
+
+          {/* Admin Login/Controls */}
           {!isLoggedIn ? (
             <Dialog open={showLogin} onOpenChange={setShowLogin}>
               <DialogTrigger asChild>
                 <Button 
                   variant="outline" 
                   size="sm"
-                  className="bg-white border-red-500 text-red-600 hover:bg-red-50 shadow-lg text-xs md:text-sm"
+                  className="bg-white border-red-500 text-red-600 hover:bg-red-50 shadow-lg text-xs"
                 >
-                  <Shield className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
-                  Admin Login
+                  <Shield className="h-3 w-3 mr-1" />
+                  Admin
                 </Button>
               </DialogTrigger>
               <DialogContent className="bg-white">
@@ -598,7 +670,6 @@ const Index = () => {
             <div className="flex items-center gap-2">
               <Badge variant="default" className="bg-green-600 text-white text-xs">Admin</Badge>
               
-              {/* Upload Students Button */}
               <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
                 <DialogTrigger asChild>
                   <Button
@@ -606,7 +677,7 @@ const Index = () => {
                     size="sm"
                     className="bg-white border-purple-500 text-purple-600 hover:bg-purple-50"
                   >
-                    <Upload className="h-3 w-3 md:h-4 md:w-4" />
+                    <Upload className="h-3 w-3" />
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="bg-white">
@@ -629,12 +700,12 @@ const Index = () => {
                     </div>
                     <div className="text-sm text-gray-600">
                       <p>Current authorized students: <Badge>{authorizedStudents.length}</Badge></p>
+                      <p>Registered users: <Badge>{users.length}</Badge></p>
                     </div>
                   </div>
                 </DialogContent>
               </Dialog>
               
-              {/* Notifications Button */}
               <Dialog open={showNotifications} onOpenChange={setShowNotifications}>
                 <DialogTrigger asChild>
                   <Button
@@ -642,7 +713,7 @@ const Index = () => {
                     size="sm"
                     className="bg-white border-blue-500 text-blue-600 hover:bg-blue-50 relative"
                   >
-                    <Bell className="h-3 w-3 md:h-4 md:w-4" />
+                    <Bell className="h-3 w-3" />
                     {unreadNotifications > 0 && (
                       <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 text-xs bg-red-500">
                         {unreadNotifications}
@@ -714,9 +785,9 @@ const Index = () => {
                 onClick={handleLogout}
                 variant="outline"
                 size="sm"
-                className="bg-white border-red-500 text-red-600 hover:bg-red-50 text-xs md:text-sm"
+                className="bg-white border-red-500 text-red-600 hover:bg-red-50 text-xs"
               >
-                <LogOut className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                <LogOut className="h-3 w-3 mr-1" />
                 Logout
               </Button>
             </div>
@@ -724,140 +795,105 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Issue/Return Action Buttons - Visible to Everyone */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Dialog open={showIssueDialog} onOpenChange={setShowIssueDialog}>
-              <DialogTrigger asChild>
-                <Button className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 flex-1 sm:flex-none">
-                  <ArrowRight className="h-4 w-4 mr-2" />
-                  Issue Item
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-white max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Issue Sports Item</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="item">Select Item</Label>
-                    <Select onValueChange={(value) => setIssueForm({...issueForm, itemId: value})}>
-                      <SelectTrigger className="border-gray-300 focus:border-red-500">
-                        <SelectValue placeholder="Select item to issue" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {inventory.filter(item => item.available > 0).map(item => (
-                          <SelectItem key={item.id} value={item.id}>
-                            {item.name} (Available: {item.available})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="studentName">Student Name</Label>
-                    <Input
-                      id="studentName"
-                      value={issueForm.studentName}
-                      onChange={(e) => setIssueForm({...issueForm, studentName: e.target.value})}
-                      className="border-gray-300 focus:border-red-500"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="studentId">Roll Number</Label>
-                    <Input
-                      id="studentId"
-                      value={issueForm.studentId}
-                      onChange={(e) => setIssueForm({...issueForm, studentId: e.target.value})}
-                      className="border-gray-300 focus:border-red-500"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="phoneNumber">Phone Number</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="phoneNumber"
-                        value={issueForm.phoneNumber}
-                        onChange={(e) => setIssueForm({...issueForm, phoneNumber: e.target.value})}
-                        className="border-gray-300 focus:border-red-500 pl-10"
-                        placeholder="10-digit phone number"
-                        maxLength={10}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="roomNumber">Room Number</Label>
-                    <Input
-                      id="roomNumber"
-                      value={issueForm.roomNumber}
-                      onChange={(e) => setIssueForm({...issueForm, roomNumber: e.target.value})}
-                      className="border-gray-300 focus:border-red-500"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="notes">Notes (Optional)</Label>
-                    <Textarea
-                      id="notes"
-                      value={issueForm.notes}
-                      onChange={(e) => setIssueForm({...issueForm, notes: e.target.value})}
-                      className="border-gray-300 focus:border-red-500"
-                    />
-                  </div>
-                  <Button onClick={issueItem} className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
+      {/* Issue/Return Action Buttons - Only for logged in users */}
+      {currentUser && (
+        <div className="bg-white shadow-sm border-b">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Dialog open={showIssueDialog} onOpenChange={setShowIssueDialog}>
+                <DialogTrigger asChild>
+                  <Button className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 flex-1 sm:flex-none">
+                    <ArrowRight className="h-4 w-4 mr-2" />
                     Issue Item
                   </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogTrigger>
+                <DialogContent className="bg-white max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Issue Sports Item</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm font-medium">Issuing to: {currentUser.name}</p>
+                      <p className="text-sm text-gray-600">Roll Number: {currentUser.rollNumber}</p>
+                    </div>
+                    <div>
+                      <Label htmlFor="item">Select Item</Label>
+                      <Select onValueChange={(value) => setIssueForm({...issueForm, itemId: value})}>
+                        <SelectTrigger className="border-gray-300 focus:border-red-500">
+                          <SelectValue placeholder="Select item to issue" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {inventory.filter(item => item.available > 0).map(item => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.name} (Available: {item.available})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="notes">Notes (Optional)</Label>
+                      <Textarea
+                        id="notes"
+                        value={issueForm.notes}
+                        onChange={(e) => setIssueForm({...issueForm, notes: e.target.value})}
+                        className="border-gray-300 focus:border-red-500"
+                      />
+                    </div>
+                    <Button onClick={issueItem} className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
+                      Issue Item
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
 
-            <Dialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="border-blue-500 text-blue-600 hover:bg-blue-50 flex-1 sm:flex-none">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Request Return
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-white max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Request Item Return</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="returnItem">Select Your Issued Item</Label>
-                    <Select onValueChange={(value) => setReturnForm({...returnForm, issueId: value})}>
-                      <SelectTrigger className="border-gray-300 focus:border-red-500">
-                        <SelectValue placeholder="Select your issued item" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {issues.filter(issue => issue.status === 'issued').map(issue => (
-                          <SelectItem key={issue.id} value={issue.id}>
-                            {issue.itemName} - {issue.studentName} ({issue.studentId})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="returnNotes">Return Notes (Optional)</Label>
-                    <Textarea
-                      id="returnNotes"
-                      value={returnForm.notes}
-                      onChange={(e) => setReturnForm({...returnForm, notes: e.target.value})}
-                      className="border-gray-300 focus:border-red-500"
-                      placeholder="Any damage or notes about the return..."
-                    />
-                  </div>
-                  <Button onClick={requestReturn} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700">
+              <Dialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="border-blue-500 text-blue-600 hover:bg-blue-50 flex-1 sm:flex-none">
+                    <ArrowLeft className="h-4 w-4 mr-2" />
                     Request Return
                   </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogTrigger>
+                <DialogContent className="bg-white max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Request Item Return</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="returnItem">Select Your Issued Item</Label>
+                      <Select onValueChange={(value) => setReturnForm({...returnForm, issueId: value})}>
+                        <SelectTrigger className="border-gray-300 focus:border-red-500">
+                          <SelectValue placeholder="Select your issued item" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getUserIssues(currentUser.rollNumber).map(issue => (
+                            <SelectItem key={issue.id} value={issue.id}>
+                              {issue.itemName} (Issued: {issue.issueDate})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="returnNotes">Return Notes (Optional)</Label>
+                      <Textarea
+                        id="returnNotes"
+                        value={returnForm.notes}
+                        onChange={(e) => setReturnForm({...returnForm, notes: e.target.value})}
+                        className="border-gray-300 focus:border-red-500"
+                        placeholder="Any damage or notes about the return..."
+                      />
+                    </div>
+                    <Button onClick={requestReturn} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700">
+                      Request Return
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Admin Controls Bar */}
       {isLoggedIn && (
@@ -923,8 +959,8 @@ const Index = () => {
             <CardContent className="p-3 md:p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs md:text-sm opacity-90">Total Issues</p>
-                  <p className="text-lg md:text-2xl font-bold">{issues.length}</p>
+                  <p className="text-xs md:text-sm opacity-90">Users</p>
+                  <p className="text-lg md:text-2xl font-bold">{users.length}</p>
                 </div>
                 <Activity className="h-6 w-6 md:h-8 md:w-8 opacity-80" />
               </div>
@@ -1029,90 +1065,51 @@ const Index = () => {
                         <p className="text-xs text-gray-500 mt-1">Added: {item.addedDate}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {/* Issue Button for each item */}
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={item.available <= 0}
-                              className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 disabled:opacity-50"
-                            >
-                              <ArrowRight className="h-4 w-4 mr-1" />
-                              Issue
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="bg-white max-w-md">
-                            <DialogHeader>
-                              <DialogTitle>Issue {item.name}</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div className="p-3 bg-gray-50 rounded-lg">
-                                <p className="text-sm font-medium">Item: {item.name}</p>
-                                <p className="text-sm text-gray-600">Available: {item.available}</p>
-                              </div>
-                              <div>
-                                <Label htmlFor="studentName">Student Name</Label>
-                                <Input
-                                  id="studentName"
-                                  value={issueForm.studentName}
-                                  onChange={(e) => setIssueForm({...issueForm, studentName: e.target.value, itemId: item.id})}
-                                  className="border-gray-300 focus:border-red-500"
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="studentId">Roll Number</Label>
-                                <Input
-                                  id="studentId"
-                                  value={issueForm.studentId}
-                                  onChange={(e) => setIssueForm({...issueForm, studentId: e.target.value})}
-                                  className="border-gray-300 focus:border-red-500"
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="phoneNumber">Phone Number</Label>
-                                <div className="relative">
-                                  <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                                  <Input
-                                    id="phoneNumber"
-                                    value={issueForm.phoneNumber}
-                                    onChange={(e) => setIssueForm({...issueForm, phoneNumber: e.target.value})}
-                                    className="border-gray-300 focus:border-red-500 pl-10"
-                                    placeholder="10-digit phone number"
-                                    maxLength={10}
+                        {currentUser && (
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={item.available <= 0}
+                                className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 disabled:opacity-50"
+                              >
+                                <ArrowRight className="h-4 w-4 mr-1" />
+                                Issue
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="bg-white max-w-md">
+                              <DialogHeader>
+                                <DialogTitle>Issue {item.name}</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4">
+                                <div className="p-3 bg-gray-50 rounded-lg">
+                                  <p className="text-sm font-medium">Item: {item.name}</p>
+                                  <p className="text-sm text-gray-600">Available: {item.available}</p>
+                                  <p className="text-sm text-gray-600">Issuing to: {currentUser.name} ({currentUser.rollNumber})</p>
+                                </div>
+                                <div>
+                                  <Label htmlFor="notes">Notes (Optional)</Label>
+                                  <Textarea
+                                    id="notes"
+                                    value={issueForm.notes}
+                                    onChange={(e) => setIssueForm({...issueForm, notes: e.target.value})}
+                                    className="border-gray-300 focus:border-red-500"
                                   />
                                 </div>
+                                <Button 
+                                  onClick={() => {
+                                    setIssueForm({...issueForm, itemId: item.id});
+                                    issueItem();
+                                  }} 
+                                  className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                                >
+                                  Issue {item.name}
+                                </Button>
                               </div>
-                              <div>
-                                <Label htmlFor="roomNumber">Room Number</Label>
-                                <Input
-                                  id="roomNumber"
-                                  value={issueForm.roomNumber}
-                                  onChange={(e) => setIssueForm({...issueForm, roomNumber: e.target.value})}
-                                  className="border-gray-300 focus:border-red-500"
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="notes">Notes (Optional)</Label>
-                                <Textarea
-                                  id="notes"
-                                  value={issueForm.notes}
-                                  onChange={(e) => setIssueForm({...issueForm, notes: e.target.value})}
-                                  className="border-gray-300 focus:border-red-500"
-                                />
-                              </div>
-                              <Button 
-                                onClick={() => {
-                                  setIssueForm({...issueForm, itemId: item.id});
-                                  issueItem();
-                                }} 
-                                className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
-                              >
-                                Issue {item.name}
-                              </Button>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
+                            </DialogContent>
+                          </Dialog>
+                        )}
                         
                         {isLoggedIn && (
                           <>
@@ -1196,6 +1193,33 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* User Auth Components */}
+      <UserSignup
+        authorizedStudents={authorizedStudents}
+        users={users}
+        onUserRegister={handleUserRegister}
+        open={showSignup}
+        onOpenChange={setShowSignup}
+      />
+
+      <UserSignin
+        users={users}
+        onUserLogin={handleUserLogin}
+        open={showUserSignin}
+        onOpenChange={setShowUserSignin}
+      />
+
+      {currentUser && (
+        <UserProfile
+          user={currentUser}
+          issues={issues}
+          onPasswordChange={handlePasswordChange}
+          onLogout={handleUserLogout}
+          open={showUserProfile}
+          onOpenChange={setShowUserProfile}
+        />
+      )}
 
       {/* Footer */}
       <div className="bg-gradient-to-r from-red-600 to-orange-600 text-white p-6 mt-12">
