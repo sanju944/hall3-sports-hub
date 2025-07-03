@@ -67,19 +67,21 @@ const UserSignup: React.FC<UserSignupProps> = ({
       return;
     }
 
-    // Check if student is authorized
-    const isAuthorized = authorizedStudents.some(student => 
-      student.rollNumber.toLowerCase() === signupForm.rollNumber.toLowerCase() && 
-      student.name.toLowerCase() === signupForm.name.toLowerCase()
-    );
+    // Check if student is authorized (only if list exists)
+    if (authorizedStudents.length > 0) {
+      const isAuthorized = authorizedStudents.some(student => 
+        student.rollNumber.toLowerCase() === signupForm.rollNumber.toLowerCase() && 
+        student.name.toLowerCase() === signupForm.name.toLowerCase()
+      );
 
-    if (!isAuthorized) {
-      toast({
-        title: "Access Denied",
-        description: "Student not found in authorized list. Please contact admin.",
-        variant: "destructive",
-      });
-      return;
+      if (!isAuthorized) {
+        toast({
+          title: "Access Denied",
+          description: "Student not found in authorized list. Please contact admin.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     // Check if user already exists

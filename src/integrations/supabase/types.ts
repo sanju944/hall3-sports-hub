@@ -9,7 +9,211 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      authorized_students: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          roll_number: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          roll_number: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          roll_number?: string
+        }
+        Relationships: []
+      }
+      inventory: {
+        Row: {
+          added_date: string
+          available: number
+          category: string
+          condition: string
+          created_at: string
+          id: string
+          name: string
+          quantity: number
+          updated_at: string
+        }
+        Insert: {
+          added_date?: string
+          available?: number
+          category: string
+          condition?: string
+          created_at?: string
+          id?: string
+          name: string
+          quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          added_date?: string
+          available?: number
+          category?: string
+          condition?: string
+          created_at?: string
+          id?: string
+          name?: string
+          quantity?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      issues: {
+        Row: {
+          created_at: string
+          id: string
+          issue_date: string
+          item_id: string
+          item_name: string
+          notes: string | null
+          phone_number: string
+          return_date: string | null
+          room_number: string
+          status: string
+          student_id: string
+          student_name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          issue_date?: string
+          item_id: string
+          item_name: string
+          notes?: string | null
+          phone_number: string
+          return_date?: string | null
+          room_number: string
+          status?: string
+          student_id: string
+          student_name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          issue_date?: string
+          item_id?: string
+          item_name?: string
+          notes?: string | null
+          phone_number?: string
+          return_date?: string | null
+          room_number?: string
+          status?: string
+          student_id?: string
+          student_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "issues_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          data: Json | null
+          id: string
+          message: string
+          read: boolean
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          message: string
+          read?: boolean
+          type: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          message?: string
+          read?: boolean
+          type?: string
+        }
+        Relationships: []
+      }
+      return_requests: {
+        Row: {
+          created_at: string
+          id: string
+          issue_id: string
+          notes: string | null
+          request_date: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          issue_id: string
+          notes?: string | null
+          request_date?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          issue_id?: string
+          notes?: string | null
+          request_date?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "return_requests_issue_id_fkey"
+            columns: ["issue_id"]
+            isOneToOne: false
+            referencedRelation: "issues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          password: string
+          phone_number: string
+          registered_date: string
+          roll_number: string
+          room_number: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          password: string
+          phone_number: string
+          registered_date?: string
+          roll_number: string
+          room_number: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          password?: string
+          phone_number?: string
+          registered_date?: string
+          roll_number?: string
+          room_number?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

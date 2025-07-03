@@ -14,52 +14,7 @@ import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, 
 import UserSignup from '@/components/UserSignup';
 import UserSignin from '@/components/UserSignin';
 import UserProfile from '@/components/UserProfile';
-
-interface InventoryItem {
-  id: string;
-  name: string;
-  category: string;
-  quantity: number;
-  available: number;
-  condition: string;
-  addedDate: string;
-}
-
-interface IssueRecord {
-  id: string;
-  itemId: string;
-  itemName: string;
-  studentName: string;
-  studentId: string;
-  roomNumber: string;
-  phoneNumber: string;
-  issueDate: string;
-  returnDate?: string;
-  status: 'issued' | 'returned';
-  notes?: string;
-}
-
-interface ReturnRequest {
-  id: string;
-  issueId: string;
-  requestDate: string;
-  status: 'pending' | 'approved' | 'rejected';
-  notes?: string;
-}
-
-interface Notification {
-  id: string;
-  type: 'issue' | 'return_request';
-  message: string;
-  timestamp: string;
-  read: boolean;
-  data?: any;
-}
-
-interface AuthorizedStudent {
-  rollNumber: string;
-  name: string;
-}
+import { useSupabaseData } from '@/hooks/useSupabaseData';
 
 interface User {
   id: string;
@@ -71,6 +26,16 @@ interface User {
   registeredDate: string;
 }
 
+interface InventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  quantity: number;
+  available: number;
+  condition: string;
+  addedDate: string;
+}
+
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -80,12 +45,6 @@ const Index = () => {
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  const [issues, setIssues] = useState<IssueRecord[]>([]);
-  const [returnRequests, setReturnRequests] = useState<ReturnRequest[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [authorizedStudents, setAuthorizedStudents] = useState<AuthorizedStudent[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
   const [activeTab, setActiveTab] = useState('inventory');
   const [showAddItem, setShowAddItem] = useState(false);
   const [showIssueDialog, setShowIssueDialog] = useState(false);
@@ -94,6 +53,29 @@ const Index = () => {
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const { toast } = useToast();
+
+  const {
+    inventory,
+    users,
+    issues,
+    returnRequests,
+    notifications,
+    authorizedStudents,
+    loading,
+    addInventoryItem,
+    updateInventoryItem,
+    deleteInventoryItem,
+    addUser,
+    updateUser,
+    addIssue,
+    updateIssue,
+    addReturnRequest,
+    updateReturnRequest,
+    addNotification,
+    updateNotification,
+    deleteNotification,
+    addAuthorizedStudents
+  } = useSupabaseData();
 
   // Form states
   const [newItem, setNewItem] = useState({
@@ -114,34 +96,10 @@ const Index = () => {
   });
 
   useEffect(() => {
-    // Load data from localStorage
-    const savedInventory = localStorage.getItem('hall3-inventory');
-    const savedIssues = localStorage.getItem('hall3-issues');
-    const savedReturnRequests = localStorage.getItem('hall3-return-requests');
-    const savedNotifications = localStorage.getItem('hall3-notifications');
-    const savedAuthorizedStudents = localStorage.getItem('hall3-authorized-students');
-    const savedUsers = localStorage.getItem('hall3-users');
+    // Load auth state from localStorage
     const savedAuth = localStorage.getItem('hall3-auth');
     const savedCurrentUser = localStorage.getItem('hall3-current-user');
 
-    if (savedInventory) {
-      setInventory(JSON.parse(savedInventory));
-    }
-    if (savedIssues) {
-      setIssues(JSON.parse(savedIssues));
-    }
-    if (savedReturnRequests) {
-      setReturnRequests(JSON.parse(savedReturnRequests));
-    }
-    if (savedNotifications) {
-      setNotifications(JSON.parse(savedNotifications));
-    }
-    if (savedAuthorizedStudents) {
-      setAuthorizedStudents(JSON.parse(savedAuthorizedStudents));
-    }
-    if (savedUsers) {
-      setUsers(JSON.parse(savedUsers));
-    }
     if (savedAuth === 'true') {
       setIsLoggedIn(true);
     }
@@ -149,35 +107,6 @@ const Index = () => {
       setCurrentUser(JSON.parse(savedCurrentUser));
     }
   }, []);
-
-  const addNotification = (type: 'issue' | 'return_request', message: string, data?: any) => {
-    const notification: Notification = {
-      id: Date.now().toString(),
-      type,
-      message,
-      timestamp: new Date().toISOString(),
-      read: false,
-      data
-    };
-    
-    const updatedNotifications = [notification, ...notifications];
-    setNotifications(updatedNotifications);
-    localStorage.setItem('hall3-notifications', JSON.stringify(updatedNotifications));
-  };
-
-  const markNotificationAsRead = (id: string) => {
-    const updatedNotifications = notifications.map(n => 
-      n.id === id ? { ...n, read: true } : n
-    );
-    setNotifications(updatedNotifications);
-    localStorage.setItem('hall3-notifications', JSON.stringify(updatedNotifications));
-  };
-
-  const removeNotification = (id: string) => {
-    const updatedNotifications = notifications.filter(n => n.id !== id);
-    setNotifications(updatedNotifications);
-    localStorage.setItem('hall3-notifications', JSON.stringify(updatedNotifications));
-  };
 
   const handleLogin = () => {
     if (email === 'sanjaykhara9876@gmail.com' && password === 'Hall3isbest') {
@@ -225,67 +154,103 @@ const Index = () => {
     });
   };
 
-  const handleUserRegister = (user: User) => {
-    const updatedUsers = [...users, user];
-    setUsers(updatedUsers);
-    localStorage.setItem('hall3-users', JSON.stringify(updatedUsers));
-  };
-
-  const handlePasswordChange = (userId: string, newPassword: string) => {
-    const updatedUsers = users.map(u => 
-      u.id === userId ? { ...u, password: newPassword } : u
-    );
-    setUsers(updatedUsers);
-    localStorage.setItem('hall3-users', JSON.stringify(updatedUsers));
-
-    if (currentUser && currentUser.id === userId) {
-      const updatedCurrentUser = { ...currentUser, password: newPassword };
-      setCurrentUser(updatedCurrentUser);
-      localStorage.setItem('hall3-current-user', JSON.stringify(updatedCurrentUser));
+  const handleUserRegister = async (user: User) => {
+    try {
+      await addUser({
+        roll_number: user.rollNumber,
+        name: user.name,
+        phone_number: user.phoneNumber,
+        room_number: user.roomNumber,
+        password: user.password,
+        registered_date: user.registeredDate
+      });
+      toast({
+        title: "User Registered",
+        description: "User has been registered successfully.",
+      });
+    } catch (error) {
+      console.error('Error registering user:', error);
+      toast({
+        title: "Registration Failed",
+        description: "Failed to register user. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleExcelUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePasswordChange = async (userId: string, newPassword: string) => {
+    try {
+      await updateUser(userId, { password: newPassword });
+
+      if (currentUser && currentUser.id === userId) {
+        const updatedCurrentUser = { ...currentUser, password: newPassword };
+        setCurrentUser(updatedCurrentUser);
+        localStorage.setItem('hall3-current-user', JSON.stringify(updatedCurrentUser));
+      }
+
+      toast({
+        title: "Password Updated",
+        description: "Password has been updated successfully.",
+      });
+    } catch (error) {
+      console.error('Error updating password:', error);
+      toast({
+        title: "Update Failed",
+        description: "Failed to update password. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExcelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const lines = text.split('\n');
-      const students: AuthorizedStudent[] = [];
+    reader.onload = async (e) => {
+      try {
+        const text = e.target?.result as string;
+        const lines = text.split('\n');
+        const students: { roll_number: string; name: string }[] = [];
 
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (line) {
-          const [rollNumber, name] = line.split(',').map(item => item.trim().replace(/"/g, ''));
-          if (rollNumber && name) {
-            students.push({ rollNumber, name });
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (line) {
+            const [rollNumber, name] = line.split(',').map(item => item.trim().replace(/"/g, ''));
+            if (rollNumber && name) {
+              students.push({ roll_number: rollNumber, name });
+            }
           }
         }
-      }
 
-      setAuthorizedStudents(students);
-      localStorage.setItem('hall3-authorized-students', JSON.stringify(students));
-      setShowUploadDialog(false);
-      
-      toast({
-        title: "Student List Uploaded",
-        description: `${students.length} authorized students loaded successfully.`,
-      });
+        await addAuthorizedStudents(students);
+        setShowUploadDialog(false);
+        
+        toast({
+          title: "Student List Uploaded",
+          description: `${students.length} authorized students loaded successfully.`,
+        });
+      } catch (error) {
+        console.error('Error uploading students:', error);
+        toast({
+          title: "Upload Failed",
+          description: "Failed to upload student list. Please try again.",
+          variant: "destructive",
+        });
+      }
     };
     reader.readAsText(file);
   };
 
   const isStudentAuthorized = (rollNumber: string, studentName: string) => {
-    if (authorizedStudents.length === 0) return true; // If no list uploaded, allow all
+    if (authorizedStudents.length === 0) return true;
     return authorizedStudents.some(student => 
-      student.rollNumber.toLowerCase() === rollNumber.toLowerCase() && 
+      student.roll_number.toLowerCase() === rollNumber.toLowerCase() && 
       student.name.toLowerCase() === studentName.toLowerCase()
     );
   };
 
-  const addInventoryItem = () => {
+  const handleAddInventoryItem = async () => {
     if (!newItem.name || !newItem.category || newItem.quantity <= 0) {
       toast({
         title: "Error",
@@ -295,41 +260,51 @@ const Index = () => {
       return;
     }
 
-    const item: InventoryItem = {
-      id: Date.now().toString(),
-      name: newItem.name,
-      category: newItem.category,
-      quantity: newItem.quantity,
-      available: newItem.quantity,
-      condition: newItem.condition,
-      addedDate: new Date().toISOString().split('T')[0]
-    };
+    try {
+      await addInventoryItem({
+        name: newItem.name,
+        category: newItem.category,
+        quantity: newItem.quantity,
+        available: newItem.quantity,
+        condition: newItem.condition,
+        added_date: new Date().toISOString().split('T')[0]
+      });
 
-    const updatedInventory = [...inventory, item];
-    setInventory(updatedInventory);
-    localStorage.setItem('hall3-inventory', JSON.stringify(updatedInventory));
-    
-    setNewItem({ name: '', category: '', quantity: 0, condition: 'Good' });
-    setShowAddItem(false);
-    
-    toast({
-      title: "Item Added",
-      description: `${item.name} has been added to inventory.`,
-    });
+      setNewItem({ name: '', category: '', quantity: 0, condition: 'Good' });
+      setShowAddItem(false);
+      
+      toast({
+        title: "Item Added",
+        description: `${newItem.name} has been added to inventory.`,
+      });
+    } catch (error) {
+      console.error('Error adding item:', error);
+      toast({
+        title: "Add Failed",
+        description: "Failed to add item. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const deleteInventoryItem = (id: string) => {
-    const updatedInventory = inventory.filter(item => item.id !== id);
-    setInventory(updatedInventory);
-    localStorage.setItem('hall3-inventory', JSON.stringify(updatedInventory));
-    
-    toast({
-      title: "Item Deleted",
-      description: "Item has been removed from inventory.",
-    });
+  const handleDeleteInventoryItem = async (id: string) => {
+    try {
+      await deleteInventoryItem(id);
+      toast({
+        title: "Item Deleted",
+        description: "Item has been removed from inventory.",
+      });
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      toast({
+        title: "Delete Failed",
+        description: "Failed to delete item. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const issueItem = () => {
+  const handleIssueItem = async () => {
     if (!issueForm.itemId || !currentUser) {
       toast({
         title: "Error",
@@ -349,44 +324,52 @@ const Index = () => {
       return;
     }
 
-    const issue: IssueRecord = {
-      id: Date.now().toString(),
-      itemId: issueForm.itemId,
-      itemName: item.name,
-      studentName: currentUser.name,
-      studentId: currentUser.rollNumber,
-      roomNumber: currentUser.roomNumber,
-      phoneNumber: currentUser.phoneNumber,
-      issueDate: new Date().toISOString().split('T')[0],
-      status: 'issued',
-      notes: issueForm.notes
-    };
+    try {
+      // Add issue record
+      await addIssue({
+        item_id: issueForm.itemId,
+        item_name: item.name,
+        student_name: currentUser.name,
+        student_id: currentUser.rollNumber,
+        room_number: currentUser.roomNumber,
+        phone_number: currentUser.phoneNumber,
+        issue_date: new Date().toISOString().split('T')[0],
+        status: 'issued',
+        notes: issueForm.notes || null,
+        return_date: null
+      });
 
-    const updatedInventory = inventory.map(i => 
-      i.id === issueForm.itemId 
-        ? { ...i, available: i.available - 1 }
-        : i
-    );
-    
-    const updatedIssues = [...issues, issue];
+      // Update inventory availability
+      await updateInventoryItem(issueForm.itemId, { 
+        available: item.available - 1 
+      });
 
-    setInventory(updatedInventory);
-    setIssues(updatedIssues);
-    localStorage.setItem('hall3-inventory', JSON.stringify(updatedInventory));
-    localStorage.setItem('hall3-issues', JSON.stringify(updatedIssues));
+      // Add notification
+      await addNotification({
+        type: 'issue',
+        message: `New item issued: ${item.name} to ${currentUser.name} (${currentUser.rollNumber})`,
+        read: false,
+        data: { item_name: item.name, student_name: currentUser.name, student_id: currentUser.rollNumber }
+      });
 
-    addNotification('issue', `New item issued: ${item.name} to ${currentUser.name} (${currentUser.rollNumber})`, issue);
+      setIssueForm({ itemId: '', notes: '' });
+      setShowIssueDialog(false);
 
-    setIssueForm({ itemId: '', notes: '' });
-    setShowIssueDialog(false);
-
-    toast({
-      title: "Item Issued",
-      description: `${item.name} issued successfully`,
-    });
+      toast({
+        title: "Item Issued",
+        description: `${item.name} issued successfully`,
+      });
+    } catch (error) {
+      console.error('Error issuing item:', error);
+      toast({
+        title: "Issue Failed",
+        description: "Failed to issue item. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const requestReturn = () => {
+  const handleRequestReturn = async () => {
     if (!returnForm.issueId || !currentUser) {
       toast({
         title: "Error",
@@ -399,93 +382,123 @@ const Index = () => {
     const issue = issues.find(i => i.id === returnForm.issueId);
     if (!issue) return;
 
-    const returnRequest: ReturnRequest = {
-      id: Date.now().toString(),
-      issueId: returnForm.issueId,
-      requestDate: new Date().toISOString().split('T')[0],
-      status: 'pending',
-      notes: returnForm.notes
-    };
+    try {
+      await addReturnRequest({
+        issue_id: returnForm.issueId,
+        request_date: new Date().toISOString().split('T')[0],
+        status: 'pending',
+        notes: returnForm.notes || null
+      });
 
-    const updatedReturnRequests = [...returnRequests, returnRequest];
-    setReturnRequests(updatedReturnRequests);
-    localStorage.setItem('hall3-return-requests', JSON.stringify(updatedReturnRequests));
+      await addNotification({
+        type: 'return_request',
+        message: `Return request for ${issue.item_name} by ${issue.student_name} (${issue.student_id})`,
+        read: false,
+        data: { issue_id: issue.id, item_name: issue.item_name, student_name: issue.student_name }
+      });
 
-    addNotification('return_request', `Return request for ${issue.itemName} by ${issue.studentName} (${issue.studentId})`, { issue, returnRequest });
+      setReturnForm({ issueId: '', notes: '' });
+      setShowReturnDialog(false);
 
-    setReturnForm({ issueId: '', notes: '' });
-    setShowReturnDialog(false);
-
-    toast({
-      title: "Return Request Submitted",
-      description: `Return request for ${issue.itemName} has been submitted to admin.`,
-    });
+      toast({
+        title: "Return Request Submitted",
+        description: `Return request for ${issue.item_name} has been submitted to admin.`,
+      });
+    } catch (error) {
+      console.error('Error requesting return:', error);
+      toast({
+        title: "Request Failed",
+        description: "Failed to submit return request. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const approveReturnRequest = (requestId: string) => {
+  const handleApproveReturnRequest = async (requestId: string) => {
     const returnRequest = returnRequests.find(r => r.id === requestId);
     if (!returnRequest) return;
 
-    const issue = issues.find(i => i.id === returnRequest.issueId);
+    const issue = issues.find(i => i.id === returnRequest.issue_id);
     if (!issue) return;
 
-    const updatedReturnRequests = returnRequests.map(r => 
-      r.id === requestId ? { ...r, status: 'approved' as const } : r
-    );
+    try {
+      // Update return request status
+      await updateReturnRequest(requestId, { status: 'approved' });
 
-    const updatedIssues = issues.map(i => 
-      i.id === returnRequest.issueId 
-        ? { ...i, status: 'returned' as const, returnDate: new Date().toISOString().split('T')[0] }
-        : i
-    );
+      // Update issue status
+      await updateIssue(returnRequest.issue_id, { 
+        status: 'returned',
+        return_date: new Date().toISOString().split('T')[0]
+      });
 
-    const updatedInventory = inventory.map(i => {
-      if (i.id === issue.itemId) {
-        const newAvailable = Math.min(i.available + 1, i.quantity);
-        return { ...i, available: newAvailable };
+      // Update inventory availability
+      const item = inventory.find(i => i.id === issue.item_id);
+      if (item) {
+        const newAvailable = Math.min(item.available + 1, item.quantity);
+        await updateInventoryItem(issue.item_id, { available: newAvailable });
       }
-      return i;
-    });
 
-    setReturnRequests(updatedReturnRequests);
-    setIssues(updatedIssues);
-    setInventory(updatedInventory);
+      // Remove notification
+      const notificationToRemove = notifications.find(n => 
+        n.data && typeof n.data === 'object' && 'issue_id' in n.data && n.data.issue_id === returnRequest.issue_id
+      );
+      if (notificationToRemove) {
+        await deleteNotification(notificationToRemove.id);
+      }
 
-    localStorage.setItem('hall3-return-requests', JSON.stringify(updatedReturnRequests));
-    localStorage.setItem('hall3-issues', JSON.stringify(updatedIssues));
-    localStorage.setItem('hall3-inventory', JSON.stringify(updatedInventory));
-
-    const notificationToRemove = notifications.find(n => 
-      n.data?.returnRequest?.id === requestId
-    );
-    if (notificationToRemove) {
-      removeNotification(notificationToRemove.id);
+      toast({
+        title: "Return Approved",
+        description: `${issue.item_name} return approved for ${issue.student_name}`,
+      });
+    } catch (error) {
+      console.error('Error approving return:', error);
+      toast({
+        title: "Approval Failed",
+        description: "Failed to approve return. Please try again.",
+        variant: "destructive",
+      });
     }
-
-    toast({
-      title: "Return Approved",
-      description: `${issue.itemName} return approved for ${issue.studentName}`,
-    });
   };
 
-  const rejectReturnRequest = (requestId: string) => {
-    const updatedReturnRequests = returnRequests.map(r => 
-      r.id === requestId ? { ...r, status: 'rejected' as const } : r
-    );
-    setReturnRequests(updatedReturnRequests);
-    localStorage.setItem('hall3-return-requests', JSON.stringify(updatedReturnRequests));
+  const handleRejectReturnRequest = async (requestId: string) => {
+    try {
+      await updateReturnRequest(requestId, { status: 'rejected' });
 
-    const notificationToRemove = notifications.find(n => 
-      n.data?.returnRequest?.id === requestId
-    );
-    if (notificationToRemove) {
-      removeNotification(notificationToRemove.id);
+      const notificationToRemove = notifications.find(n => 
+        n.data && typeof n.data === 'object' && 'issue_id' in n.data
+      );
+      if (notificationToRemove) {
+        await deleteNotification(notificationToRemove.id);
+      }
+
+      toast({
+        title: "Return Request Rejected",
+        description: "Return request has been rejected.",
+      });
+    } catch (error) {
+      console.error('Error rejecting return:', error);
+      toast({
+        title: "Rejection Failed",
+        description: "Failed to reject return. Please try again.",
+        variant: "destructive",
+      });
     }
+  };
 
-    toast({
-      title: "Return Request Rejected",
-      description: "Return request has been rejected.",
-    });
+  const handleMarkNotificationAsRead = async (id: string) => {
+    try {
+      await updateNotification(id, { read: true });
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const handleRemoveNotification = async (id: string) => {
+    try {
+      await deleteNotification(id);
+    } catch (error) {
+      console.error('Error removing notification:', error);
+    }
   };
 
   const exportToExcel = () => {
@@ -498,19 +511,19 @@ const Index = () => {
         item.quantity,
         item.available,
         item.condition,
-        item.addedDate
+        item.added_date
       ]),
       [''],
       ['ISSUE/RETURN DATA'],
       ['Item Name', 'Student Name', 'Student ID', 'Room Number', 'Phone Number', 'Issue Date', 'Return Date', 'Status', 'Notes'],
       ...issues.map(issue => [
-        issue.itemName,
-        issue.studentName,
-        issue.studentId,
-        issue.roomNumber,
-        issue.phoneNumber,
-        issue.issueDate,
-        issue.returnDate || 'Not Returned',
+        issue.item_name,
+        issue.student_name,
+        issue.student_id,
+        issue.room_number,
+        issue.phone_number,
+        issue.issue_date,
+        issue.return_date || 'Not Returned',
         issue.status,
         issue.notes || ''
       ]),
@@ -518,11 +531,11 @@ const Index = () => {
       ['REGISTERED USERS DATA'],
       ['Roll Number', 'Name', 'Phone Number', 'Room Number', 'Registration Date'],
       ...users.map(user => [
-        user.rollNumber,
+        user.roll_number,
         user.name,
-        user.phoneNumber,
-        user.roomNumber,
-        user.registeredDate
+        user.phone_number,
+        user.room_number,
+        user.registered_date
       ])
     ];
 
@@ -543,19 +556,46 @@ const Index = () => {
 
   const getUserIssues = (studentId: string) => {
     return issues.filter(issue => 
-      issue.studentId === studentId && 
+      issue.student_id === studentId && 
       issue.status === 'issued'
     );
   };
 
+  // Convert users data for components
+  const convertedUsers = users.map(user => ({
+    id: user.id,
+    rollNumber: user.roll_number,
+    name: user.name,
+    phoneNumber: user.phone_number,
+    roomNumber: user.room_number,
+    password: user.password,
+    registeredDate: user.registered_date
+  }));
+
+  const convertedAuthorizedStudents = authorizedStudents.map(student => ({
+    rollNumber: student.roll_number,
+    name: student.name
+  }));
+
   const unreadNotifications = notifications.filter(n => !n.read).length;
 
-  // Sort issues by latest first (most recent issue date first)
+  // Sort issues by latest first
   const sortedIssues = [...issues].sort((a, b) => {
-    const dateA = new Date(a.issueDate + 'T00:00:00');
-    const dateB = new Date(b.issueDate + 'T00:00:00');
+    const dateA = new Date(a.issue_date + 'T00:00:00');
+    const dateB = new Date(b.issue_date + 'T00:00:00');
     return dateB.getTime() - dateA.getTime();
   });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading Hall-3 Sports Inventory...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -568,10 +608,9 @@ const Index = () => {
           className="absolute top-3 md:top-6 left-1/2 transform -translate-x-1/2 h-12 w-12 md:h-20 md:w-20 lg:h-24 lg:w-24 object-contain z-10"
         />
         
-        {/* Student Auth Buttons - Top Corners */}
+        {/* Student Auth Buttons */}
         {!currentUser && !isLoggedIn && (
           <>
-            {/* Sign Up - Left Corner */}
             <div className="absolute top-2 md:top-4 left-2 md:left-4 z-20">
               <Button 
                 onClick={() => setShowSignup(true)}
@@ -584,7 +623,6 @@ const Index = () => {
               </Button>
             </div>
             
-            {/* Sign In - Right Corner */}
             <div className="absolute top-2 md:top-4 right-2 md:right-4 z-20">
               <Button 
                 onClick={() => setShowUserSignin(true)}
@@ -599,7 +637,6 @@ const Index = () => {
           </>
         )}
 
-        {/* Current User Profile - Top Right when logged in */}
         {currentUser && (
           <div className="absolute top-2 md:top-4 right-2 md:right-4 z-20">
             <Button 
@@ -624,7 +661,6 @@ const Index = () => {
               Sports Equipment Management System
             </p>
             
-            {/* Admin Button - Below Subtitle */}
             <div className="flex justify-center">
               {!isLoggedIn ? (
                 <Dialog open={showLogin} onOpenChange={setShowLogin}>
@@ -749,22 +785,27 @@ const Index = () => {
                                 size="sm"
                                 variant="ghost"
                                 className="absolute top-1 right-1 h-6 w-6 p-0"
-                                onClick={() => removeNotification(notification.id)}
+                                onClick={() => handleRemoveNotification(notification.id)}
                               >
                                 <X className="h-3 w-3" />
                               </Button>
-                              <div onClick={() => markNotificationAsRead(notification.id)}>
+                              <div onClick={() => handleMarkNotificationAsRead(notification.id)}>
                                 <p className="text-sm font-medium pr-6">{notification.message}</p>
                                 <p className="text-xs text-gray-500 mt-1">
-                                  {new Date(notification.timestamp).toLocaleString()}
+                                  {new Date(notification.created_at).toLocaleString()}
                                 </p>
-                                {notification.type === 'return_request' && notification.data && (
+                                {notification.type === 'return_request' && (
                                   <div className="flex gap-2 mt-2">
                                     <Button
                                       size="sm"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        approveReturnRequest(notification.data.returnRequest.id);
+                                        const returnRequest = returnRequests.find(r => 
+                                          notification.data && typeof notification.data === 'object' && 'issue_id' in notification.data && r.issue_id === notification.data.issue_id
+                                        );
+                                        if (returnRequest) {
+                                          handleApproveReturnRequest(returnRequest.id);
+                                        }
                                       }}
                                       className="bg-green-500 hover:bg-green-600"
                                     >
@@ -776,7 +817,12 @@ const Index = () => {
                                       variant="destructive"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        rejectReturnRequest(notification.data.returnRequest.id);
+                                        const returnRequest = returnRequests.find(r => 
+                                          notification.data && typeof notification.data === 'object' && 'issue_id' in notification.data && r.issue_id === notification.data.issue_id
+                                        );
+                                        if (returnRequest) {
+                                          handleRejectReturnRequest(returnRequest.id);
+                                        }
                                       }}
                                     >
                                       <X className="h-3 w-3 mr-1" />
@@ -808,7 +854,7 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Issue/Return Action Buttons - Only for logged in users */}
+      {/* Issue/Return Action Buttons */}
       {currentUser && (
         <div className="bg-white shadow-sm border-b">
           <div className="container mx-auto px-4 py-4">
@@ -853,7 +899,7 @@ const Index = () => {
                         className="border-gray-300 focus:border-red-500"
                       />
                     </div>
-                    <Button onClick={issueItem} className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
+                    <Button onClick={handleIssueItem} className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
                       Issue Item
                     </Button>
                   </div>
@@ -881,7 +927,7 @@ const Index = () => {
                         <SelectContent>
                           {getUserIssues(currentUser.rollNumber).map(issue => (
                             <SelectItem key={issue.id} value={issue.id}>
-                              {issue.itemName} (Issued: {issue.issueDate})
+                              {issue.item_name} (Issued: {issue.issue_date})
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -897,7 +943,7 @@ const Index = () => {
                         placeholder="Any damage or notes about the return..."
                       />
                     </div>
-                    <Button onClick={requestReturn} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700">
+                    <Button onClick={handleRequestReturn} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700">
                       Request Return
                     </Button>
                   </div>
@@ -1053,7 +1099,7 @@ const Index = () => {
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button onClick={addInventoryItem} className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600">
+                      <Button onClick={handleAddInventoryItem} className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600">
                         Add Item
                       </Button>
                     </div>
@@ -1075,7 +1121,7 @@ const Index = () => {
                           <span>Available: <Badge variant={item.available > 0 ? "default" : "destructive"}>{item.available}</Badge></span>
                           <span>Condition: <Badge variant="secondary">{item.condition}</Badge></span>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">Added: {item.addedDate}</p>
+                        <p className="text-xs text-gray-500 mt-1">Added: {item.added_date}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {currentUser && (
@@ -1113,7 +1159,7 @@ const Index = () => {
                                 <Button 
                                   onClick={() => {
                                     setIssueForm({...issueForm, itemId: item.id});
-                                    issueItem();
+                                    handleIssueItem();
                                   }} 
                                   className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
                                 >
@@ -1137,7 +1183,7 @@ const Index = () => {
                             <Button
                               size="sm"
                               variant="destructive"
-                              onClick={() => deleteInventoryItem(item.id)}
+                              onClick={() => handleDeleteInventoryItem(item.id)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -1172,14 +1218,14 @@ const Index = () => {
                   <CardContent className="p-4">
                     <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-800">{issue.itemName}</h3>
+                        <h3 className="text-lg font-semibold text-gray-800">{issue.item_name}</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 text-sm text-gray-600">
-                          <span>Student: {issue.studentName}</span>
-                          <span>Roll No: {issue.studentId}</span>
-                          <span>Room: {issue.roomNumber}</span>
-                          <span>Phone: {issue.phoneNumber}</span>
-                          <span>Issue Date: {issue.issueDate}</span>
-                          {issue.returnDate && <span>Return Date: {issue.returnDate}</span>}
+                          <span>Student: {issue.student_name}</span>
+                          <span>Roll No: {issue.student_id}</span>
+                          <span>Room: {issue.room_number}</span>
+                          <span>Phone: {issue.phone_number}</span>
+                          <span>Issue Date: {issue.issue_date}</span>
+                          {issue.return_date && <span>Return Date: {issue.return_date}</span>}
                           <span>
                             <Badge variant={issue.status === 'issued' ? "default" : "secondary"}>
                               {issue.status.toUpperCase()}
@@ -1209,15 +1255,15 @@ const Index = () => {
 
       {/* User Auth Components */}
       <UserSignup
-        authorizedStudents={authorizedStudents}
-        users={users}
+        authorizedStudents={convertedAuthorizedStudents}
+        users={convertedUsers}
         onUserRegister={handleUserRegister}
         open={showSignup}
         onOpenChange={setShowSignup}
       />
 
       <UserSignin
-        users={users}
+        users={convertedUsers}
         onUserLogin={handleUserLogin}
         open={showUserSignin}
         onOpenChange={setShowUserSignin}
@@ -1226,7 +1272,19 @@ const Index = () => {
       {currentUser && (
         <UserProfile
           user={currentUser}
-          issues={issues}
+          issues={issues.map(issue => ({
+            id: issue.id,
+            itemId: issue.item_id,
+            itemName: issue.item_name,
+            studentName: issue.student_name,
+            studentId: issue.student_id,
+            roomNumber: issue.room_number,
+            phoneNumber: issue.phone_number,
+            issueDate: issue.issue_date,
+            returnDate: issue.return_date,
+            status: issue.status as 'issued' | 'returned',
+            notes: issue.notes
+          }))}
           onPasswordChange={handlePasswordChange}
           onLogout={handleUserLogout}
           open={showUserProfile}
