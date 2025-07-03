@@ -181,56 +181,6 @@ export type Database = {
           },
         ]
       }
-      transfer_requests: {
-        Row: {
-          created_at: string
-          from_user_id: string
-          from_user_name: string
-          id: string
-          item_id: string
-          item_name: string
-          notes: string | null
-          request_date: string
-          status: string
-          to_user_id: string
-          to_user_name: string
-        }
-        Insert: {
-          created_at?: string
-          from_user_id: string
-          from_user_name: string
-          id?: string
-          item_id: string
-          item_name: string
-          notes?: string | null
-          request_date?: string
-          status?: string
-          to_user_id: string
-          to_user_name: string
-        }
-        Update: {
-          created_at?: string
-          from_user_id?: string
-          from_user_name?: string
-          id?: string
-          item_id?: string
-          item_name?: string
-          notes?: string | null
-          request_date?: string
-          status?: string
-          to_user_id?: string
-          to_user_name?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "transfer_requests_item_id_fkey"
-            columns: ["item_id"]
-            isOneToOne: false
-            referencedRelation: "inventory"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       users: {
         Row: {
           created_at: string
