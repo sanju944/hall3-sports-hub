@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -9,6 +8,7 @@ type Issue = Database['public']['Tables']['issues']['Row'];
 type ReturnRequest = Database['public']['Tables']['return_requests']['Row'];
 type Notification = Database['public']['Tables']['notifications']['Row'];
 type AuthorizedStudent = Database['public']['Tables']['authorized_students']['Row'];
+type TransferRequest = Database['public']['Tables']['transfer_requests']['Row'];
 
 export const useSupabaseData = () => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -17,6 +17,7 @@ export const useSupabaseData = () => {
   const [returnRequests, setReturnRequests] = useState<ReturnRequest[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [authorizedStudents, setAuthorizedStudents] = useState<AuthorizedStudent[]>([]);
+  const [transferRequests, setTransferRequests] = useState<TransferRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch all data on mount
@@ -33,14 +34,16 @@ export const useSupabaseData = () => {
         issuesData,
         returnRequestsData,
         notificationsData,
-        authorizedData
+        authorizedData,
+        transferRequestsData
       ] = await Promise.all([
         supabase.from('inventory').select('*').order('created_at', { ascending: false }),
         supabase.from('users').select('*').order('created_at', { ascending: false }),
         supabase.from('issues').select('*').order('created_at', { ascending: false }),
         supabase.from('return_requests').select('*').order('created_at', { ascending: false }),
         supabase.from('notifications').select('*').order('created_at', { ascending: false }),
-        supabase.from('authorized_students').select('*')
+        supabase.from('authorized_students').select('*'),
+        supabase.from('transfer_requests').select('*').order('created_at', { ascending: false })
       ]);
 
       if (inventoryData.data) setInventory(inventoryData.data);
@@ -49,6 +52,7 @@ export const useSupabaseData = () => {
       if (returnRequestsData.data) setReturnRequests(returnRequestsData.data);
       if (notificationsData.data) setNotifications(notificationsData.data);
       if (authorizedData.data) setAuthorizedStudents(authorizedData.data);
+      if (transferRequestsData.data) setTransferRequests(transferRequestsData.data);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -155,6 +159,23 @@ export const useSupabaseData = () => {
       )
       .subscribe();
 
+    // Subscribe to transfer requests changes
+    const transferRequestsChannel = supabase
+      .channel('transfer-requests-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transfer_requests' }, 
+        (payload) => {
+          console.log('Transfer requests change:', payload);
+          if (payload.eventType === 'INSERT') {
+            setTransferRequests(prev => [payload.new as TransferRequest, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setTransferRequests(prev => prev.map(req => 
+              req.id === payload.new.id ? payload.new as TransferRequest : req
+            ));
+          }
+        }
+      )
+      .subscribe();
+
     // Cleanup function
     return () => {
       supabase.removeChannel(inventoryChannel);
@@ -163,6 +184,7 @@ export const useSupabaseData = () => {
       supabase.removeChannel(returnRequestsChannel);
       supabase.removeChannel(usersChannel);
       supabase.removeChannel(authorizedChannel);
+      supabase.removeChannel(transferRequestsChannel);
     };
   };
 
@@ -232,6 +254,16 @@ export const useSupabaseData = () => {
     if (error) throw error;
   };
 
+  const addTransferRequest = async (request: Omit<TransferRequest, 'id' | 'created_at'>) => {
+    const { error } = await supabase.from('transfer_requests').insert([request]);
+    if (error) throw error;
+  };
+
+  const updateTransferRequest = async (id: string, updates: Partial<TransferRequest>) => {
+    const { error } = await supabase.from('transfer_requests').update(updates).eq('id', id);
+    if (error) throw error;
+  };
+
   return {
     // Data
     inventory,
@@ -240,6 +272,7 @@ export const useSupabaseData = () => {
     returnRequests,
     notifications,
     authorizedStudents,
+    transferRequests,
     loading,
     
     // Operations
@@ -256,6 +289,8 @@ export const useSupabaseData = () => {
     updateNotification,
     deleteNotification,
     addAuthorizedStudents,
+    addTransferRequest,
+    updateTransferRequest,
     
     // Utilities
     refreshData: fetchAllData

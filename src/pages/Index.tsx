@@ -2,64 +2,58 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft, Bell, Check, X, Phone, Upload, UserPlus, User, Linkedin } from 'lucide-react';
+import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft, Bell, Check, X, Phone, Upload, UserPlus, User, Linkedin, RefreshCw } from 'lucide-react';
 import UserSignup from '@/components/UserSignup';
 import UserSignin from '@/components/UserSignin';
 import UserProfile from '@/components/UserProfile';
+import TransferDialog from '@/components/TransferDialog';
+import NotificationsDialog from '@/components/NotificationsDialog';
 import { useSupabaseData } from '@/hooks/useSupabaseData';
 
-interface User {
-  id: string;
-  rollNumber: string;
-  name: string;
-  phoneNumber: string;
-  roomNumber: string;
-  password: string;
-  registeredDate: string;
-}
-
-interface InventoryItem {
-  id: string;
-  name: string;
-  category: string;
-  quantity: number;
-  available: number;
-  condition: string;
-  addedDate: string;
-}
-
 const Index = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [showLogin, setShowLogin] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [showSignup, setShowSignup] = useState(false);
-  const [showUserSignin, setShowUserSignin] = useState(false);
-  const [showUserProfile, setShowUserProfile] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [activeTab, setActiveTab] = useState('inventory');
+  const [showSignin, setShowSignin] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [showAddItem, setShowAddItem] = useState(false);
-  const [showIssueDialog, setShowIssueDialog] = useState(false);
-  const [showReturnDialog, setShowReturnDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [newItem, setNewItem] = useState({
+    name: '',
+    category: '',
+    quantity: 0,
+    available: 0,
+    condition: 'Good'
+  });
+  const [requestForm, setRequestForm] = useState({
+    studentName: '',
+    studentId: '',
+    roomNumber: '',
+    phoneNumber: '',
+    notes: ''
+  });
+  const [showRequestDialog, setShowRequestDialog] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const [selectedItemForTransfer, setSelectedItemForTransfer] = useState<any>(null);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showUploadDialog, setShowUploadDialog] = useState(false);
-  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
-  const { toast } = useToast();
 
-  const {
-    inventory,
-    users,
-    issues,
-    returnRequests,
-    notifications,
+  const { 
+    inventory, 
+    users, 
+    issues, 
+    returnRequests, 
+    notifications, 
     authorizedStudents,
+    transferRequests,
     loading,
     addInventoryItem,
     updateInventoryItem,
@@ -73,494 +67,14 @@ const Index = () => {
     addNotification,
     updateNotification,
     deleteNotification,
-    addAuthorizedStudents
+    addAuthorizedStudents,
+    addTransferRequest,
+    updateTransferRequest
   } = useSupabaseData();
 
-  // Form states
-  const [newItem, setNewItem] = useState({
-    name: '',
-    category: '',
-    quantity: 0,
-    condition: 'Good'
-  });
+  const { toast } = useToast();
 
-  const [issueForm, setIssueForm] = useState({
-    itemId: '',
-    notes: ''
-  });
-
-  const [returnForm, setReturnForm] = useState({
-    issueId: '',
-    notes: ''
-  });
-
-  useEffect(() => {
-    // Load auth state from localStorage
-    const savedAuth = localStorage.getItem('hall3-auth');
-    const savedCurrentUser = localStorage.getItem('hall3-current-user');
-
-    if (savedAuth === 'true') {
-      setIsLoggedIn(true);
-    }
-    if (savedCurrentUser) {
-      setCurrentUser(JSON.parse(savedCurrentUser));
-    }
-  }, []);
-
-  const handleLogin = () => {
-    if (email === 'sanjaykhara9876@gmail.com' && password === 'Hall3isbest') {
-      setIsLoggedIn(true);
-      localStorage.setItem('hall3-auth', 'true');
-      setShowLogin(false);
-      setEmail('');
-      setPassword('');
-      toast({
-        title: "Admin Login Successful",
-        description: "Welcome to Hall-3 Sports Inventory Admin Panel!",
-      });
-    } else {
-      toast({
-        title: "Login Failed",
-        description: "Invalid admin credentials. Access denied.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    localStorage.removeItem('hall3-auth');
-    setEmail('');
-    setPassword('');
-    toast({
-      title: "Admin Logged Out",
-      description: "You have been logged out successfully.",
-    });
-  };
-
-  const handleUserLogin = (user: User) => {
-    setCurrentUser(user);
-    localStorage.setItem('hall3-current-user', JSON.stringify(user));
-  };
-
-  const handleUserLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('hall3-current-user');
-    setShowUserProfile(false);
-    toast({
-      title: "Logged Out",
-      description: "You have been logged out successfully.",
-    });
-  };
-
-  const handleUserRegister = async (user: User) => {
-    try {
-      await addUser({
-        roll_number: user.rollNumber,
-        name: user.name,
-        phone_number: user.phoneNumber,
-        room_number: user.roomNumber,
-        password: user.password,
-        registered_date: user.registeredDate
-      });
-      toast({
-        title: "User Registered",
-        description: "User has been registered successfully.",
-      });
-    } catch (error) {
-      console.error('Error registering user:', error);
-      toast({
-        title: "Registration Failed",
-        description: "Failed to register user. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handlePasswordChange = async (userId: string, newPassword: string) => {
-    try {
-      await updateUser(userId, { password: newPassword });
-
-      if (currentUser && currentUser.id === userId) {
-        const updatedCurrentUser = { ...currentUser, password: newPassword };
-        setCurrentUser(updatedCurrentUser);
-        localStorage.setItem('hall3-current-user', JSON.stringify(updatedCurrentUser));
-      }
-
-      toast({
-        title: "Password Updated",
-        description: "Password has been updated successfully.",
-      });
-    } catch (error) {
-      console.error('Error updating password:', error);
-      toast({
-        title: "Update Failed",
-        description: "Failed to update password. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleExcelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const text = e.target?.result as string;
-        const lines = text.split('\n');
-        const students: { roll_number: string; name: string }[] = [];
-
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (line) {
-            const [rollNumber, name] = line.split(',').map(item => item.trim().replace(/"/g, ''));
-            if (rollNumber && name) {
-              students.push({ roll_number: rollNumber, name });
-            }
-          }
-        }
-
-        await addAuthorizedStudents(students);
-        setShowUploadDialog(false);
-        
-        toast({
-          title: "Student List Uploaded",
-          description: `${students.length} authorized students loaded successfully.`,
-        });
-      } catch (error) {
-        console.error('Error uploading students:', error);
-        toast({
-          title: "Upload Failed",
-          description: "Failed to upload student list. Please try again.",
-          variant: "destructive",
-        });
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const isStudentAuthorized = (rollNumber: string, studentName: string) => {
-    if (authorizedStudents.length === 0) return true;
-    return authorizedStudents.some(student => 
-      student.roll_number.toLowerCase() === rollNumber.toLowerCase() && 
-      student.name.toLowerCase() === studentName.toLowerCase()
-    );
-  };
-
-  const handleAddInventoryItem = async () => {
-    if (!newItem.name || !newItem.category || newItem.quantity <= 0) {
-      toast({
-        title: "Error",
-        description: "Please fill all required fields.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      await addInventoryItem({
-        name: newItem.name,
-        category: newItem.category,
-        quantity: newItem.quantity,
-        available: newItem.quantity,
-        condition: newItem.condition,
-        added_date: new Date().toISOString().split('T')[0]
-      });
-
-      setNewItem({ name: '', category: '', quantity: 0, condition: 'Good' });
-      setShowAddItem(false);
-      
-      toast({
-        title: "Item Added",
-        description: `${newItem.name} has been added to inventory.`,
-      });
-    } catch (error) {
-      console.error('Error adding item:', error);
-      toast({
-        title: "Add Failed",
-        description: "Failed to add item. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteInventoryItem = async (id: string) => {
-    try {
-      await deleteInventoryItem(id);
-      toast({
-        title: "Item Deleted",
-        description: "Item has been removed from inventory.",
-      });
-    } catch (error) {
-      console.error('Error deleting item:', error);
-      toast({
-        title: "Delete Failed",
-        description: "Failed to delete item. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleIssueItem = async () => {
-    if (!issueForm.itemId || !currentUser) {
-      toast({
-        title: "Error",
-        description: "Please select an item and make sure you're logged in.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const item = inventory.find(i => i.id === issueForm.itemId);
-    if (!item || item.available <= 0) {
-      toast({
-        title: "Error",
-        description: "Item not available for issue.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      // Add issue record
-      await addIssue({
-        item_id: issueForm.itemId,
-        item_name: item.name,
-        student_name: currentUser.name,
-        student_id: currentUser.rollNumber,
-        room_number: currentUser.roomNumber,
-        phone_number: currentUser.phoneNumber,
-        issue_date: new Date().toISOString().split('T')[0],
-        status: 'issued',
-        notes: issueForm.notes || null,
-        return_date: null
-      });
-
-      // Update inventory availability
-      await updateInventoryItem(issueForm.itemId, { 
-        available: item.available - 1 
-      });
-
-      // Add notification
-      await addNotification({
-        type: 'issue',
-        message: `New item issued: ${item.name} to ${currentUser.name} (${currentUser.rollNumber})`,
-        read: false,
-        data: { item_name: item.name, student_name: currentUser.name, student_id: currentUser.rollNumber }
-      });
-
-      setIssueForm({ itemId: '', notes: '' });
-      setShowIssueDialog(false);
-
-      toast({
-        title: "Item Issued",
-        description: `${item.name} issued successfully`,
-      });
-    } catch (error) {
-      console.error('Error issuing item:', error);
-      toast({
-        title: "Issue Failed",
-        description: "Failed to issue item. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleRequestReturn = async () => {
-    if (!returnForm.issueId || !currentUser) {
-      toast({
-        title: "Error",
-        description: "Please select an item and make sure you're logged in.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const issue = issues.find(i => i.id === returnForm.issueId);
-    if (!issue) return;
-
-    try {
-      await addReturnRequest({
-        issue_id: returnForm.issueId,
-        request_date: new Date().toISOString().split('T')[0],
-        status: 'pending',
-        notes: returnForm.notes || null
-      });
-
-      await addNotification({
-        type: 'return_request',
-        message: `Return request for ${issue.item_name} by ${issue.student_name} (${issue.student_id})`,
-        read: false,
-        data: { issue_id: issue.id, item_name: issue.item_name, student_name: issue.student_name }
-      });
-
-      setReturnForm({ issueId: '', notes: '' });
-      setShowReturnDialog(false);
-
-      toast({
-        title: "Return Request Submitted",
-        description: `Return request for ${issue.item_name} has been submitted to admin.`,
-      });
-    } catch (error) {
-      console.error('Error requesting return:', error);
-      toast({
-        title: "Request Failed",
-        description: "Failed to submit return request. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleApproveReturnRequest = async (requestId: string) => {
-    const returnRequest = returnRequests.find(r => r.id === requestId);
-    if (!returnRequest) return;
-
-    const issue = issues.find(i => i.id === returnRequest.issue_id);
-    if (!issue) return;
-
-    try {
-      // Update return request status
-      await updateReturnRequest(requestId, { status: 'approved' });
-
-      // Update issue status
-      await updateIssue(returnRequest.issue_id, { 
-        status: 'returned',
-        return_date: new Date().toISOString().split('T')[0]
-      });
-
-      // Update inventory availability
-      const item = inventory.find(i => i.id === issue.item_id);
-      if (item) {
-        const newAvailable = Math.min(item.available + 1, item.quantity);
-        await updateInventoryItem(issue.item_id, { available: newAvailable });
-      }
-
-      // Remove notification
-      const notificationToRemove = notifications.find(n => 
-        n.data && typeof n.data === 'object' && 'issue_id' in n.data && n.data.issue_id === returnRequest.issue_id
-      );
-      if (notificationToRemove) {
-        await deleteNotification(notificationToRemove.id);
-      }
-
-      toast({
-        title: "Return Approved",
-        description: `${issue.item_name} return approved for ${issue.student_name}`,
-      });
-    } catch (error) {
-      console.error('Error approving return:', error);
-      toast({
-        title: "Approval Failed",
-        description: "Failed to approve return. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleRejectReturnRequest = async (requestId: string) => {
-    try {
-      await updateReturnRequest(requestId, { status: 'rejected' });
-
-      const notificationToRemove = notifications.find(n => 
-        n.data && typeof n.data === 'object' && 'issue_id' in n.data
-      );
-      if (notificationToRemove) {
-        await deleteNotification(notificationToRemove.id);
-      }
-
-      toast({
-        title: "Return Request Rejected",
-        description: "Return request has been rejected.",
-      });
-    } catch (error) {
-      console.error('Error rejecting return:', error);
-      toast({
-        title: "Rejection Failed",
-        description: "Failed to reject return. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleMarkNotificationAsRead = async (id: string) => {
-    try {
-      await updateNotification(id, { read: true });
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-    }
-  };
-
-  const handleRemoveNotification = async (id: string) => {
-    try {
-      await deleteNotification(id);
-    } catch (error) {
-      console.error('Error removing notification:', error);
-    }
-  };
-
-  const exportToExcel = () => {
-    const csvContent = [
-      ['INVENTORY DATA'],
-      ['Item Name', 'Category', 'Total Quantity', 'Available', 'Condition', 'Added Date'],
-      ...inventory.map(item => [
-        item.name,
-        item.category,
-        item.quantity,
-        item.available,
-        item.condition,
-        item.added_date
-      ]),
-      [''],
-      ['ISSUE/RETURN DATA'],
-      ['Item Name', 'Student Name', 'Student ID', 'Room Number', 'Phone Number', 'Issue Date', 'Return Date', 'Status', 'Notes'],
-      ...issues.map(issue => [
-        issue.item_name,
-        issue.student_name,
-        issue.student_id,
-        issue.room_number,
-        issue.phone_number,
-        issue.issue_date,
-        issue.return_date || 'Not Returned',
-        issue.status,
-        issue.notes || ''
-      ]),
-      [''],
-      ['REGISTERED USERS DATA'],
-      ['Roll Number', 'Name', 'Phone Number', 'Room Number', 'Registration Date'],
-      ...users.map(user => [
-        user.roll_number,
-        user.name,
-        user.phone_number,
-        user.room_number,
-        user.registered_date
-      ])
-    ];
-
-    const csvString = csvContent.map(row => row.join(',')).join('\n');
-    const blob = new Blob([csvString], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Hall3_Sports_Inventory_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-
-    toast({
-      title: "Data Exported",
-      description: "All data has been exported to CSV file.",
-    });
-  };
-
-  const getUserIssues = (studentId: string) => {
-    return issues.filter(issue => 
-      issue.student_id === studentId && 
-      issue.status === 'issued'
-    );
-  };
-
-  // Convert inventory data with proper field mapping
+  // Convert database types to component types
   const convertedInventory = inventory.map(item => ({
     id: item.id,
     name: item.name,
@@ -571,7 +85,6 @@ const Index = () => {
     addedDate: item.added_date
   }));
 
-  // Convert users data for components
   const convertedUsers = users.map(user => ({
     id: user.id,
     rollNumber: user.roll_number,
@@ -582,511 +95,742 @@ const Index = () => {
     registeredDate: user.registered_date
   }));
 
-  const convertedAuthorizedStudents = authorizedStudents.map(student => ({
-    rollNumber: student.roll_number,
-    name: student.name
+  const convertedIssues = issues.map(issue => ({
+    id: issue.id,
+    itemId: issue.item_id,
+    itemName: issue.item_name,
+    studentName: issue.student_name,
+    studentId: issue.student_id,
+    roomNumber: issue.room_number,
+    phoneNumber: issue.phone_number,
+    issueDate: issue.issue_date,
+    returnDate: issue.return_date,
+    status: issue.status as 'issued' | 'returned',
+    notes: issue.notes
   }));
 
-  const unreadNotifications = notifications.filter(n => !n.read).length;
+  const convertedReturnRequests = returnRequests.map(request => ({
+    id: request.id,
+    issueId: request.issue_id,
+    requestDate: request.request_date,
+    status: request.status,
+    notes: request.notes
+  }));
 
-  // Sort issues by latest first
-  const sortedIssues = [...issues].sort((a, b) => {
-    const dateA = new Date(a.issue_date + 'T00:00:00');
-    const dateB = new Date(b.issue_date + 'T00:00:00');
-    return dateB.getTime() - dateA.getTime();
-  });
+  useEffect(() => {
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+      setCurrentUser(JSON.parse(savedUser));
+    }
+  }, []);
+
+  const handleSignup = async (userData: any) => {
+    try {
+      await addUser({
+        roll_number: userData.rollNumber,
+        name: userData.name,
+        phone_number: userData.phoneNumber,
+        room_number: userData.roomNumber,
+        password: userData.password,
+        registered_date: new Date().toISOString().split('T')[0]
+      });
+
+      toast({
+        title: "Registration Successful",
+        description: "You can now sign in with your credentials.",
+      });
+      setShowSignup(false);
+    } catch (error) {
+      toast({
+        title: "Registration Failed",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSignin = (user: any) => {
+    setCurrentUser(user);
+    localStorage.setItem('currentUser', JSON.stringify(user));
+    setShowSignin(false);
+    toast({
+      title: "Welcome!",
+      description: `Signed in as ${user.name}`,
+    });
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('currentUser');
+    setShowProfile(false);
+    toast({
+      title: "Logged Out",
+      description: "You have been successfully logged out.",
+    });
+  };
+
+  const handlePasswordChange = async (userId: string, newPassword: string) => {
+    try {
+      await updateUser(userId, { password: newPassword });
+      
+      // Update current user if it's their password being changed
+      if (currentUser && currentUser.id === userId) {
+        const updatedUser = { ...currentUser, password: newPassword };
+        setCurrentUser(updatedUser);
+        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update password.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddItem = async () => {
+    if (!newItem.name || !newItem.category) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await addInventoryItem({
+        name: newItem.name,
+        category: newItem.category,
+        quantity: newItem.quantity,
+        available: newItem.available,
+        condition: newItem.condition,
+        added_date: new Date().toISOString().split('T')[0]
+      });
+
+      setNewItem({ name: '', category: '', quantity: 0, available: 0, condition: 'Good' });
+      setShowAddItem(false);
+      toast({
+        title: "Item Added",
+        description: "New inventory item has been added successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add item.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEdit = (item: any) => {
+    setEditingItem(item);
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateItem = async () => {
+    if (!editingItem) return;
+
+    try {
+      await updateInventoryItem(editingItem.id, {
+        name: editingItem.name,
+        category: editingItem.category,
+        quantity: editingItem.quantity,
+        available: editingItem.available,
+        condition: editingItem.condition
+      });
+
+      setShowEditDialog(false);
+      setEditingItem(null);
+      toast({
+        title: "Item Updated",
+        description: "Inventory item has been updated successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update item.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this item?')) {
+      try {
+        await deleteInventoryItem(id);
+        toast({
+          title: "Item Deleted",
+          description: "Inventory item has been deleted successfully.",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete item.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleRequest = (item: any) => {
+    if (!currentUser) {
+      toast({
+        title: "Please Sign In",
+        description: "You need to sign in to request items.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedItem(item);
+    setRequestForm({
+      studentName: currentUser.name,
+      studentId: currentUser.rollNumber,
+      roomNumber: currentUser.roomNumber,
+      phoneNumber: currentUser.phoneNumber,
+      notes: ''
+    });
+    setShowRequestDialog(true);
+  };
+
+  const handleSubmitRequest = async () => {
+    if (!selectedItem || !requestForm.studentName || !requestForm.studentId) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await addIssue({
+        item_id: selectedItem.id,
+        item_name: selectedItem.name,
+        student_name: requestForm.studentName,
+        student_id: requestForm.studentId,
+        room_number: requestForm.roomNumber,
+        phone_number: requestForm.phoneNumber,
+        status: 'issued',
+        issue_date: new Date().toISOString().split('T')[0],
+        notes: requestForm.notes || null
+      });
+
+      // Update inventory available count
+      await updateInventoryItem(selectedItem.id, {
+        available: Math.max(0, selectedItem.available - 1)
+      });
+
+      // Add notification
+      await addNotification({
+        type: 'issue',
+        message: `New item issued: ${selectedItem.name} to ${requestForm.studentName}`,
+        read: false,
+        data: { itemId: selectedItem.id, studentName: requestForm.studentName }
+      });
+
+      setShowRequestDialog(false);
+      setRequestForm({ studentName: '', studentId: '', roomNumber: '', phoneNumber: '', notes: '' });
+      toast({
+        title: "Request Submitted",
+        description: "Your item request has been submitted successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to submit request.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReturnRequest = async (issueId: string) => {
+    try {
+      await addReturnRequest({
+        issue_id: issueId,
+        status: 'pending',
+        request_date: new Date().toISOString().split('T')[0],
+        notes: null
+      });
+
+      // Add notification
+      const issue = convertedIssues.find(i => i.id === issueId);
+      if (issue) {
+        await addNotification({
+          type: 'return_request',
+          message: `Return request submitted for ${issue.itemName} by ${issue.studentName}`,
+          read: false,
+          data: { issueId, itemName: issue.itemName, studentName: issue.studentName }
+        });
+      }
+
+      toast({
+        title: "Return Request Submitted",
+        description: "Your return request has been submitted.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to submit return request.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleApproveReturn = async (requestId: string) => {
+    try {
+      const returnRequest = convertedReturnRequests.find(r => r.id === requestId);
+      if (!returnRequest) return;
+
+      const issue = convertedIssues.find(i => i.id === returnRequest.issueId);
+      if (!issue) return;
+
+      // Update return request status
+      await updateReturnRequest(requestId, { status: 'approved' });
+
+      // Update issue status and return date
+      await updateIssue(issue.id, {
+        status: 'returned',
+        return_date: new Date().toISOString().split('T')[0]
+      });
+
+      // Update inventory available count
+      const item = convertedInventory.find(i => i.id === issue.itemId);
+      if (item) {
+        await updateInventoryItem(issue.itemId, {
+          available: item.available + 1
+        });
+      }
+
+      toast({
+        title: "Return Approved",
+        description: "The return request has been approved.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to approve return.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRejectReturn = async (requestId: string) => {
+    try {
+      await updateReturnRequest(requestId, { status: 'rejected' });
+      toast({
+        title: "Return Rejected",
+        description: "The return request has been rejected.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to reject return.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setCsvFile(file);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n');
+      const headers = lines[0].split(',').map(h => h.trim());
+      
+      const items = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        if (values.length >= 5) {
+          items.push({
+            name: values[0],
+            category: values[1],
+            quantity: parseInt(values[2]) || 0,
+            available: parseInt(values[3]) || 0,
+            condition: values[4] || 'Good',
+            added_date: new Date().toISOString().split('T')[0]
+          });
+        }
+      }
+
+      try {
+        for (const item of items) {
+          await addInventoryItem(item);
+        }
+        toast({
+          title: "CSV Uploaded",
+          description: `Successfully added ${items.length} items from CSV.`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to upload CSV data.",
+          variant: "destructive",
+        });
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleBulkStudentUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n');
+      
+      const students = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        if (values.length >= 2) {
+          students.push({
+            roll_number: values[0],
+            name: values[1]
+          });
+        }
+      }
+
+      try {
+        await addAuthorizedStudents(students);
+        toast({
+          title: "Students Added",
+          description: `Successfully added ${students.length} authorized students.`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to upload student data.",
+          variant: "destructive",
+        });
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleTransferRequest = async (
+    itemId: string,
+    itemName: string,
+    fromUserId: string,
+    fromUserName: string,
+    toUserId: string,
+    toUserName: string,
+    notes?: string
+  ) => {
+    try {
+      await addTransferRequest({
+        item_id: itemId,
+        item_name: itemName,
+        from_user_id: fromUserId,
+        from_user_name: fromUserName,
+        to_user_id: toUserId,
+        to_user_name: toUserName,
+        notes: notes || null,
+        status: 'pending',
+        request_date: new Date().toISOString().split('T')[0]
+      });
+
+      // Add notification for the recipient
+      await addNotification({
+        type: 'transfer_request',
+        message: `${fromUserName} wants to transfer "${itemName}" to you.`,
+        read: false,
+        data: { transferItemId: itemId, fromUser: fromUserName }
+      });
+
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const handleApproveTransfer = async (transferId: string) => {
+    const transfer = transferRequests.find(t => t.id === transferId);
+    if (!transfer) return;
+
+    try {
+      // Update transfer status
+      await updateTransferRequest(transferId, { status: 'approved' });
+
+      // Create an issue for the new user
+      const toUser = users.find(u => u.roll_number === transfer.to_user_id);
+      if (toUser) {
+        await addIssue({
+          item_id: transfer.item_id,
+          item_name: transfer.item_name,
+          student_name: transfer.to_user_name,
+          student_id: transfer.to_user_id,
+          room_number: toUser.room_number,
+          phone_number: toUser.phone_number,
+          status: 'issued',
+          issue_date: new Date().toISOString().split('T')[0],
+          notes: `Transferred from ${transfer.from_user_name}`
+        });
+
+        // Update inventory available count
+        const item = inventory.find(i => i.id === transfer.item_id);
+        if (item) {
+          await updateInventoryItem(transfer.item_id, {
+            available: Math.max(0, item.available - 1)
+          });
+        }
+      }
+
+      // Add notification for the original requester
+      await addNotification({
+        type: 'transfer_request',
+        message: `Your transfer request for "${transfer.item_name}" has been approved by ${transfer.to_user_name}.`,
+        read: false,
+        data: { transferItemId: transfer.item_id }
+      });
+
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const handleRejectTransfer = async (transferId: string) => {
+    const transfer = transferRequests.find(t => t.id === transferId);
+    if (!transfer) return;
+
+    try {
+      await updateTransferRequest(transferId, { status: 'rejected' });
+
+      // Add notification for the original requester
+      await addNotification({
+        type: 'transfer_request',
+        message: `Your transfer request for "${transfer.item_name}" has been rejected by ${transfer.to_user_name}.`,
+        read: false,
+        data: { transferItemId: transfer.item_id }
+      });
+
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const handleMarkNotificationAsRead = async (notificationId: string) => {
+    try {
+      await updateNotification(notificationId, { read: true });
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const openTransferDialog = (item: any) => {
+    setSelectedItemForTransfer(item);
+    setShowTransferDialog(true);
+  };
+
+  // Count unread notifications and pending transfers
+  const unreadCount = notifications.filter(n => !n.read).length + 
+    transferRequests.filter(t => t.to_user_id === currentUser?.rollNumber && t.status === 'pending').length;
+
+  // Dashboard stats
+  const totalItems = convertedInventory.reduce((sum, item) => sum + item.quantity, 0);
+  const availableItems = convertedInventory.reduce((sum, item) => sum + item.available, 0);
+  const issuedItems = convertedIssues.filter(issue => issue.status === 'issued').length;
+  const totalUsers = convertedUsers.length;
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading Hall-3 Sports Inventory...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+          <p className="text-red-600 font-medium">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Hero Section with Logo */}
-      <div className="relative h-56 md:h-72 bg-gradient-to-r from-slate-100 to-gray-100 border-b-4 border-red-500">
-        {/* Logo - Centered and Enlarged */}
-        <img 
-          src="/lovable-uploads/5b532a8c-4c79-4972-b351-f890ab065309.png" 
-          alt="Hall-3 Sports Logo" 
-          className="absolute top-3 md:top-6 left-1/2 transform -translate-x-1/2 h-12 w-12 md:h-20 md:w-20 lg:h-24 lg:w-24 object-contain z-10"
-        />
-        
-        {/* Student Auth Buttons */}
-        {!currentUser && !isLoggedIn && (
-          <>
-            <div className="absolute top-2 md:top-4 left-2 md:left-4 z-20">
-              <Button 
-                onClick={() => setShowSignup(true)}
-                variant="outline" 
-                size="sm"
-                className="bg-white border-green-500 text-green-600 hover:bg-green-50 shadow-lg text-xs"
-              >
-                <UserPlus className="h-3 w-3 mr-1" />
-                Sign Up
-              </Button>
+    <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-100">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-red-600 to-orange-600 text-white p-4 shadow-lg">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-4">
+            {/* Logo */}
+            <img 
+              src="/lovable-uploads/5b532a8c-4c79-4972-b351-f890ab065309.png" 
+              alt="Hall 3 Logo" 
+              className="h-12 w-12 rounded-full border-2 border-white shadow-md"
+            />
+            <div>
+              <h1 className="text-xl md:text-3xl font-bold">HALL 3 INVENTORY SYSTEM</h1>
+              <p className="text-xs md:text-sm opacity-90">Manage your hostel inventory efficiently</p>
             </div>
-            
-            <div className="absolute top-2 md:top-4 right-2 md:right-4 z-20">
-              <Button 
-                onClick={() => setShowUserSignin(true)}
-                variant="outline" 
-                size="sm"
-                className="bg-white border-blue-500 text-blue-600 hover:bg-blue-50 shadow-lg text-xs"
-              >
-                <LogIn className="h-3 w-3 mr-1" />
-                Sign In
-              </Button>
-            </div>
-          </>
-        )}
-
-        {currentUser && (
-          <div className="absolute top-2 md:top-4 right-2 md:right-4 z-20">
-            <Button 
-              onClick={() => setShowUserProfile(true)}
-              variant="outline" 
-              size="sm"
-              className="bg-white border-purple-500 text-purple-600 hover:bg-purple-50 shadow-lg text-xs"
-            >
-              <User className="h-3 w-3 mr-1" />
-              {currentUser.name}
-            </Button>
           </div>
-        )}
-        
-        {/* Main Title and Subtitle */}
-        <div className="relative z-10 flex flex-col items-center justify-center h-full pt-16 md:pt-24">
-          <div className="text-center text-gray-800 px-4">
-            <h1 className="text-lg md:text-3xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
-              Hall-3 Sports Inventory Tracker
-            </h1>
-            <p className="text-xs md:text-lg lg:text-xl font-semibold text-gray-600 mb-4">
-              Sports Equipment Management System
-            </p>
-            
-            <div className="flex justify-center">
-              {!isLoggedIn ? (
-                <Dialog open={showLogin} onOpenChange={setShowLogin}>
-                  <DialogTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="bg-white border-red-500 text-red-600 hover:bg-red-50 shadow-lg text-xs"
-                    >
-                      <Shield className="h-3 w-3 mr-1" />
-                      Admin Login
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-white">
-                    <DialogHeader>
-                      <DialogTitle className="text-center text-red-600 text-xl font-bold flex items-center justify-center gap-2">
-                        <LogIn className="h-6 w-6" />
-                        Admin Login
-                      </DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 p-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="border-gray-300 focus:border-red-500"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="password">Password</Label>
-                        <Input
-                          id="password"
-                          type="password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="border-gray-300 focus:border-red-500"
-                          onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                        />
-                      </div>
-                      <Button 
-                        onClick={handleLogin} 
-                        className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
-                      >
-                        Login as Admin
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              ) : (
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <Badge variant="default" className="bg-green-600 text-white text-xs">Admin</Badge>
-                  
-                  <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-                    <DialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-white border-purple-500 text-purple-600 hover:bg-purple-50"
-                      >
-                        <Upload className="h-3 w-3 mr-1" />
-                        Upload
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="bg-white">
-                      <DialogHeader>
-                        <DialogTitle>Upload Student List</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="excel-file">Upload Excel/CSV File</Label>
-                          <Input
-                            id="excel-file"
-                            type="file"
-                            accept=".csv,.xlsx,.xls"
-                            onChange={handleExcelUpload}
-                            className="border-gray-300 focus:border-red-500"
-                          />
-                          <p className="text-xs text-gray-500 mt-2">
-                            Upload CSV with columns: Roll Number, Student Name
-                          </p>
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          <p>Current authorized students: <Badge>{authorizedStudents.length}</Badge></p>
-                          <p>Registered users: <Badge>{users.length}</Badge></p>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                  
-                  <Dialog open={showNotifications} onOpenChange={setShowNotifications}>
-                    <DialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-white border-blue-500 text-blue-600 hover:bg-blue-50 relative"
-                      >
-                        <Bell className="h-3 w-3" />
-                        {unreadNotifications > 0 && (
-                          <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 text-xs bg-red-500">
-                            {unreadNotifications}
-                          </Badge>
-                        )}
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="bg-white max-w-md max-h-96 overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Notifications</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-2">
-                        {notifications.length === 0 ? (
-                          <p className="text-gray-500 text-center py-4">No notifications</p>
-                        ) : (
-                          notifications.map((notification) => (
-                            <div
-                              key={notification.id}
-                              className={`p-3 rounded-lg border ${notification.read ? 'bg-gray-50' : 'bg-blue-50 border-blue-200'} relative`}
-                            >
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="absolute top-1 right-1 h-6 w-6 p-0"
-                                onClick={() => handleRemoveNotification(notification.id)}
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
-                              <div onClick={() => handleMarkNotificationAsRead(notification.id)}>
-                                <p className="text-sm font-medium pr-6">{notification.message}</p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {new Date(notification.created_at).toLocaleString()}
-                                </p>
-                                {notification.type === 'return_request' && (
-                                  <div className="flex gap-2 mt-2">
-                                    <Button
-                                      size="sm"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const returnRequest = returnRequests.find(r => 
-                                          notification.data && typeof notification.data === 'object' && 'issue_id' in notification.data && r.issue_id === notification.data.issue_id
-                                        );
-                                        if (returnRequest) {
-                                          handleApproveReturnRequest(returnRequest.id);
-                                        }
-                                      }}
-                                      className="bg-green-500 hover:bg-green-600"
-                                    >
-                                      <Check className="h-3 w-3 mr-1" />
-                                      Approve
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="destructive"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const returnRequest = returnRequests.find(r => 
-                                          notification.data && typeof notification.data === 'object' && 'issue_id' in notification.data && r.issue_id === notification.data.issue_id
-                                        );
-                                        if (returnRequest) {
-                                          handleRejectReturnRequest(returnRequest.id);
-                                        }
-                                      }}
-                                    >
-                                      <X className="h-3 w-3 mr-1" />
-                                      Reject
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+          
+          <div className="flex items-center gap-2">
+            {/* Notifications Button */}
+            {currentUser && (
+              <Button
+                onClick={() => setShowNotifications(true)}
+                variant="outline"
+                size="sm"
+                className="relative border-white text-white hover:bg-white hover:text-red-600"
+              >
+                <Bell className="h-4 w-4" />
+                {unreadCount > 0 && (
+                  <Badge className="absolute -top-2 -right-2 bg-yellow-500 text-black text-xs h-5 w-5 rounded-full p-0 flex items-center justify-center">
+                    {unreadCount}
+                  </Badge>
+                )}
+              </Button>
+            )}
 
-                  <Button
-                    onClick={handleLogout}
-                    variant="outline"
-                    size="sm"
-                    className="bg-white border-red-500 text-red-600 hover:bg-red-50 text-xs"
-                  >
-                    <LogOut className="h-3 w-3 mr-1" />
-                    Logout
-                  </Button>
-                </div>
-              )}
-            </div>
+            {currentUser ? (
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setShowProfile(true)}
+                  variant="outline"
+                  size="sm"
+                  className="border-white text-white hover:bg-white hover:text-red-600"
+                >
+                  <User className="h-4 w-4 mr-1" />
+                  {currentUser.name}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setShowSignin(true)}
+                  variant="outline"
+                  size="sm"
+                  className="border-white text-white hover:bg-white hover:text-red-600"
+                >
+                  <LogIn className="h-4 w-4 mr-1" />
+                  Sign In
+                </Button>
+                <Button
+                  onClick={() => setShowSignup(true)}
+                  variant="outline"
+                  size="sm"
+                  className="border-white text-white hover:bg-white hover:text-red-600"
+                >
+                  <UserPlus className="h-4 w-4 mr-1" />
+                  Sign Up
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Issue/Return Action Buttons */}
-      {currentUser && (
-        <div className="bg-white shadow-sm border-b">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Dialog open={showIssueDialog} onOpenChange={setShowIssueDialog}>
-                <DialogTrigger asChild>
-                  <Button className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 flex-1 sm:flex-none">
-                    <ArrowRight className="h-4 w-4 mr-2" />
-                    Issue Item
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-white max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Issue Sports Item</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="p-3 bg-gray-50 rounded-lg">
-                      <p className="text-sm font-medium">Issuing to: {currentUser.name}</p>
-                      <p className="text-sm text-gray-600">Roll Number: {currentUser.rollNumber}</p>
-                    </div>
-                    <div>
-                      <Label htmlFor="item">Select Item</Label>
-                      <Select onValueChange={(value) => setIssueForm({...issueForm, itemId: value})}>
-                        <SelectTrigger className="border-gray-300 focus:border-red-500">
-                          <SelectValue placeholder="Select item to issue" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {inventory.filter(item => item.available > 0).map(item => (
-                            <SelectItem key={item.id} value={item.id}>
-                              {item.name} (Available: {item.available})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="notes">Notes (Optional)</Label>
-                      <Textarea
-                        id="notes"
-                        value={issueForm.notes}
-                        onChange={(e) => setIssueForm({...issueForm, notes: e.target.value})}
-                        className="border-gray-300 focus:border-red-500"
-                      />
-                    </div>
-                    <Button onClick={handleIssueItem} className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
-                      Issue Item
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              <Dialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="border-blue-500 text-blue-600 hover:bg-blue-50 flex-1 sm:flex-none">
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Request Return
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-white max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Request Item Return</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="returnItem">Select Your Issued Item</Label>
-                      <Select onValueChange={(value) => setReturnForm({...returnForm, issueId: value})}>
-                        <SelectTrigger className="border-gray-300 focus:border-red-500">
-                          <SelectValue placeholder="Select your issued item" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {getUserIssues(currentUser.rollNumber).map(issue => (
-                            <SelectItem key={issue.id} value={issue.id}>
-                              {issue.item_name} (Issued: {issue.issue_date})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="returnNotes">Return Notes (Optional)</Label>
-                      <Textarea
-                        id="returnNotes"
-                        value={returnForm.notes}
-                        onChange={(e) => setReturnForm({...returnForm, notes: e.target.value})}
-                        className="border-gray-300 focus:border-red-500"
-                        placeholder="Any damage or notes about the return..."
-                      />
-                    </div>
-                    <Button onClick={handleRequestReturn} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700">
-                      Request Return
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Admin Controls Bar */}
-      {isLoggedIn && (
-        <div className="bg-red-600 text-white shadow-lg">
-          <div className="container mx-auto px-4 py-3">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <h2 className="text-lg font-bold">Admin Dashboard</h2>
-              </div>
-              <Button
-                onClick={exportToExcel}
-                variant="outline"
-                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Stats Cards */}
-      <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mb-6">
-          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg">
-            <CardContent className="p-3 md:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs md:text-sm opacity-90">Total Items</p>
-                  <p className="text-lg md:text-2xl font-bold">{convertedInventory.length}</p>
-                </div>
-                <Package className="h-6 w-6 md:h-8 md:w-8 opacity-80" />
-              </div>
+      {/* Main Content */}
+      <div className="container mx-auto p-4 md:p-8">
+        {/* Dashboard Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-lg">
+            <CardContent className="p-4 text-center">
+              <Package className="h-8 w-8 mx-auto mb-2" />
+              <p className="text-2xl font-bold">{totalItems}</p>
+              <p className="text-xs opacity-90">Total Items</p>
             </CardContent>
           </Card>
-          
-          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg">
-            <CardContent className="p-3 md:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs md:text-sm opacity-90">Available</p>
-                  <p className="text-lg md:text-2xl font-bold">{convertedInventory.reduce((sum, item) => sum + item.available, 0)}</p>
-                </div>
-                <Trophy className="h-6 w-6 md:h-8 md:w-8 opacity-80" />
-              </div>
+          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
+            <CardContent className="p-4 text-center">
+              <Trophy className="h-8 w-8 mx-auto mb-2" />
+              <p className="text-2xl font-bold">{availableItems}</p>
+              <p className="text-xs opacity-90">Available</p>
             </CardContent>
           </Card>
-
-          <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white shadow-lg">
-            <CardContent className="p-3 md:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs md:text-sm opacity-90">Issued</p>
-                  <p className="text-lg md:text-2xl font-bold">{issues.filter(i => i.status === 'issued').length}</p>
-                </div>
-                <Users className="h-6 w-6 md:h-8 md:w-8 opacity-80" />
-              </div>
+          <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white border-0 shadow-lg">
+            <CardContent className="p-4 text-center">
+              <Activity className="h-8 w-8 mx-auto mb-2" />
+              <p className="text-2xl font-bold">{issuedItems}</p>
+              <p className="text-xs opacity-90">Issued</p>
             </CardContent>
           </Card>
-
-          <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg">
-            <CardContent className="p-3 md:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs md:text-sm opacity-90">Users</p>
-                  <p className="text-lg md:text-2xl font-bold">{users.length}</p>
-                </div>
-                <Activity className="h-6 w-6 md:h-8 md:w-8 opacity-80" />
-              </div>
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg">
+            <CardContent className="p-4 text-center">
+              <Users className="h-8 w-8 mx-auto mb-2" />
+              <p className="text-2xl font-bold">{totalUsers}</p>
+              <p className="text-xs opacity-90">Users</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Main Content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100">
-            <TabsTrigger value="inventory" className="data-[state=active]:bg-white">Sports Inventory</TabsTrigger>
-            <TabsTrigger value="issues" className="data-[state=active]:bg-white">Issue & Return</TabsTrigger>
+        <Tabs defaultValue="inventory" className="w-full">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-6 bg-white shadow-sm">
+            <TabsTrigger value="inventory" className="data-[state=active]:bg-red-500 data-[state=active]:text-white">
+              <Package className="h-4 w-4 mr-1" />
+              Inventory
+            </TabsTrigger>
+            <TabsTrigger value="issues" className="data-[state=active]:bg-red-500 data-[state=active]:text-white">
+              <Activity className="h-4 w-4 mr-1" />
+              Issues
+            </TabsTrigger>
+            <TabsTrigger value="returns" className="data-[state=active]:bg-red-500 data-[state=active]:text-white">
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Returns
+            </TabsTrigger>
+            <TabsTrigger value="users" className="data-[state=active]:bg-red-500 data-[state=active]:text-white">
+              <Users className="h-4 w-4 mr-1" />
+              Users
+            </TabsTrigger>
+            {currentUser?.rollNumber === 'admin' && (
+              <>
+                <TabsTrigger value="authorized" className="data-[state=active]:bg-red-500 data-[state=active]:text-white">
+                  <Shield className="h-4 w-4 mr-1" />
+                  Authorized
+                </TabsTrigger>
+                <TabsTrigger value="reports" className="data-[state=active]:bg-red-500 data-[state=active]:text-white">
+                  <Download className="h-4 w-4 mr-1" />
+                  Reports
+                </TabsTrigger>
+              </>
+            )}
           </TabsList>
 
-          <TabsContent value="inventory" className="space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h2 className="text-xl md:text-2xl font-bold text-gray-800">Sports Inventory</h2>
-              {isLoggedIn && (
-                <Dialog open={showAddItem} onOpenChange={setShowAddItem}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Item
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-white">
-                    <DialogHeader>
-                      <DialogTitle>Add New Sports Item</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
+          {/* Inventory Tab */}
+          <TabsContent value="inventory" className="mt-6">
+            <Card className="bg-white shadow-lg border-0">
+              <CardHeader className="bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-t-lg">
+                <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                  <Package className="h-5 w-5" />
+                  Inventory Management
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                {/* Add Item Form - Admin Only */}
+                {currentUser?.rollNumber === 'admin' && (
+                  <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <h3 className="text-lg font-medium mb-4">Add New Item</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                       <div>
-                        <Label htmlFor="name">Item Name</Label>
+                        <Label htmlFor="itemName">Item Name</Label>
                         <Input
-                          id="name"
+                          id="itemName"
                           value={newItem.name}
                           onChange={(e) => setNewItem({...newItem, name: e.target.value})}
+                          placeholder="Enter item name"
                           className="border-gray-300 focus:border-red-500"
                         />
                       </div>
                       <div>
                         <Label htmlFor="category">Category</Label>
-                        <Select onValueChange={(value) => setNewItem({...newItem, category: value})}>
+                        <Select value={newItem.category} onValueChange={(value) => setNewItem({...newItem, category: value})}>
                           <SelectTrigger className="border-gray-300 focus:border-red-500">
                             <SelectValue placeholder="Select category" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Cricket">Cricket</SelectItem>
-                            <SelectItem value="Football">Football</SelectItem>
-                            <SelectItem value="Basketball">Basketball</SelectItem>
-                            <SelectItem value="Badminton">Badminton</SelectItem>
-                            <SelectItem value="Tennis">Tennis</SelectItem>
+                            <SelectItem value="Electronics">Electronics</SelectItem>
+                            <SelectItem value="Sports">Sports</SelectItem>
+                            <SelectItem value="Furniture">Furniture</SelectItem>
+                            <SelectItem value="Books">Books</SelectItem>
+                            <SelectItem value="Tools">Tools</SelectItem>
                             <SelectItem value="Other">Other</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div>
-                        <Label htmlFor="quantity">Quantity</Label>
+                        <Label htmlFor="quantity">Total Quantity</Label>
                         <Input
                           id="quantity"
                           type="number"
@@ -1096,211 +840,590 @@ const Index = () => {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="condition">Condition</Label>
-                        <Select onValueChange={(value) => setNewItem({...newItem, condition: value})}>
-                          <SelectTrigger className="border-gray-300 focus:border-red-500">
-                            <SelectValue placeholder="Select condition" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Excellent">Excellent</SelectItem>
-                            <SelectItem value="Good">Good</SelectItem>
-                            <SelectItem value="Fair">Fair</SelectItem>
-                            <SelectItem value="Poor">Poor</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Label htmlFor="available">Available</Label>
+                        <Input
+                          id="available"
+                          type="number"
+                          value={newItem.available}
+                          onChange={(e) => setNewItem({...newItem, available: parseInt(e.target.value) || 0})}
+                          className="border-gray-300 focus:border-red-500"
+                        />
                       </div>
-                      <Button onClick={handleAddInventoryItem} className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600">
-                        Add Item
-                      </Button>
+                      <div className="flex items-end">
+                        <Button 
+                          onClick={handleAddItem}
+                          className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Item
+                        </Button>
+                      </div>
                     </div>
-                  </DialogContent>
-                </Dialog>
-              )}
-            </div>
+                  </div>
+                )}
 
-            <div className="grid gap-4">
-              {convertedInventory.map((item) => (
-                <Card key={item.id} className="border-l-4 border-l-red-500 bg-white shadow-md">
-                  <CardContent className="p-4">
-                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                {/* CSV Upload Section */}
+                {currentUser?.rollNumber === 'admin' && (
+                  <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h3 className="text-lg font-medium mb-4 text-blue-800">CSV Upload</h3>
+                    <div className="flex flex-col sm:flex-row gap-4 items-end">
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-800">{item.name}</h3>
-                        <div className="flex flex-wrap gap-2 mt-2 text-sm text-gray-600">
-                          <span>Category: <Badge variant="outline" className="border-red-200 text-red-700">{item.category}</Badge></span>
-                          <span>Total: {item.quantity}</span>
-                          <span>Available: <Badge variant={item.available > 0 ? "default" : "destructive"}>{item.available}</Badge></span>
-                          <span>Condition: <Badge variant="secondary">{item.condition}</Badge></span>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">Added: {item.addedDate}</p>
+                        <Label htmlFor="csvFile">Upload CSV File</Label>
+                        <Input
+                          id="csvFile"
+                          type="file"
+                          accept=".csv"
+                          onChange={handleCSVUpload}
+                          className="border-blue-300 focus:border-blue-500"
+                        />
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        {currentUser && (
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={item.available <= 0}
-                                className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 disabled:opacity-50"
-                              >
-                                <ArrowRight className="h-4 w-4 mr-1" />
-                                Issue
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="bg-white max-w-md">
-                              <DialogHeader>
-                                <DialogTitle>Issue {item.name}</DialogTitle>
-                              </DialogHeader>
-                              <div className="space-y-4">
-                                <div className="p-3 bg-gray-50 rounded-lg">
-                                  <p className="text-sm font-medium">Item: {item.name}</p>
-                                  <p className="text-sm text-gray-600">Available: {item.available}</p>
-                                  <p className="text-sm text-gray-600">Issuing to: {currentUser.name} ({currentUser.rollNumber})</p>
-                                </div>
-                                <div>
-                                  <Label htmlFor="notes">Notes (Optional)</Label>
-                                  <Textarea
-                                    id="notes"
-                                    value={issueForm.notes}
-                                    onChange={(e) => setIssueForm({...issueForm, notes: e.target.value})}
-                                    className="border-gray-300 focus:border-red-500"
-                                  />
-                                </div>
-                                <Button 
-                                  onClick={() => {
-                                    setIssueForm({...issueForm, itemId: item.id});
-                                    handleIssueItem();
-                                  }} 
-                                  className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={handleCSVUpload}
+                          className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 whitespace-nowrap"
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload CSV
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            const input = document.getElementById('csvFile') as HTMLInputElement;
+                            if (input) input.click();
+                          }}
+                          variant="outline"
+                          className="border-blue-300 text-blue-600 hover:bg-blue-50 whitespace-nowrap"
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Replace File
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-blue-600 mt-2">
+                      CSV should have columns: name, category, quantity, available, condition
+                    </p>
+                  </div>
+                )}
+
+                <div className="grid gap-4">
+                  {convertedInventory.map((item) => (
+                    <Card key={item.id} className="border-l-4 border-l-red-500 bg-white shadow-md">
+                      <CardContent className="p-4">
+                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                          <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-2">{item.name}</h3>
+                            <div className="flex flex-wrap gap-2 mb-2">
+                              <Badge variant="outline">{item.category}</Badge>
+                              <Badge variant={item.quantity > 0 ? "default" : "destructive"}>Qty: {item.quantity}</Badge>
+                              <Badge variant={item.available > 0 ? "default" : "destructive"}>Available: {item.available}</Badge>
+                              <Badge variant="secondary">{item.condition}</Badge>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">Added: {item.addedDate}</p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {currentUser && (
+                              <>
+                                <Button
+                                  onClick={() => handleRequest(item)}
+                                  disabled={item.available <= 0}
+                                  size="sm"
+                                  className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
                                 >
-                                  Issue {item.name}
+                                  Request
                                 </Button>
+                                <Button
+                                  onClick={() => openTransferDialog(item)}
+                                  disabled={item.available <= 0}
+                                  size="sm"
+                                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                                >
+                                  <ArrowRight className="h-4 w-4 mr-1" />
+                                  Transfer
+                                </Button>
+                              </>
+                            )}
+                            {currentUser?.rollNumber === 'admin' && (
+                              <>
+                                <Button
+                                  onClick={() => handleEdit(item)}
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  onClick={() => handleDelete(item.id)}
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-red-300 text-red-600 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Issues Tab */}
+          <TabsContent value="issues" className="mt-6">
+            <Card className="bg-white shadow-lg border-0">
+              <CardHeader className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-t-lg">
+                <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                  <Activity className="h-5 w-5" />
+                  Current Issues
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid gap-4">
+                  {convertedIssues.filter(issue => issue.status === 'issued').map((issue) => (
+                    <Card key={issue.id} className="border-l-4 border-l-orange-500 bg-white shadow-md">
+                      <CardContent className="p-4">
+                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                          <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-2">{issue.itemName}</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600">
+                              <p><strong>Student:</strong> {issue.studentName}</p>
+                              <p><strong>Roll No:</strong> {issue.studentId}</p>
+                              <p><strong>Room:</strong> {issue.roomNumber}</p>
+                              <p><strong>Phone:</strong> {issue.phoneNumber}</p>
+                              <p><strong>Issue Date:</strong> {issue.issueDate}</p>
+                              {issue.notes && <p><strong>Notes:</strong> {issue.notes}</p>}
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <Badge variant="default">Active</Badge>
+                            {(currentUser?.rollNumber === issue.studentId || currentUser?.rollNumber === 'admin') && (
+                              <Button
+                                onClick={() => handleReturnRequest(issue.id)}
+                                size="sm"
+                                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                              >
+                                <ArrowLeft className="h-4 w-4 mr-1" />
+                                Request Return
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Returns Tab */}
+          <TabsContent value="returns" className="mt-6">
+            <Card className="bg-white shadow-lg border-0">
+              <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-t-lg">
+                <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                  <ArrowLeft className="h-5 w-5" />
+                  Return Requests
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid gap-4">
+                  {convertedReturnRequests.filter(request => request.status === 'pending').map((request) => {
+                    const issue = convertedIssues.find(i => i.id === request.issueId);
+                    if (!issue) return null;
+                    
+                    return (
+                      <Card key={request.id} className="border-l-4 border-l-blue-500 bg-white shadow-md">
+                        <CardContent className="p-4">
+                          <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                            <div className="flex-1">
+                              <h3 className="text-lg font-semibold text-gray-800 mb-2">{issue.itemName}</h3>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600">
+                                <p><strong>Student:</strong> {issue.studentName}</p>
+                                <p><strong>Roll No:</strong> {issue.studentId}</p>
+                                <p><strong>Room:</strong> {issue.roomNumber}</p>
+                                <p><strong>Issue Date:</strong> {issue.issueDate}</p>
+                                <p><strong>Return Request:</strong> {request.requestDate}</p>
+                                {request.notes && <p><strong>Notes:</strong> {request.notes}</p>}
                               </div>
-                            </DialogContent>
-                          </Dialog>
-                        )}
-                        
-                        {isLoggedIn && (
-                          <>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <Badge variant="secondary">Pending Return</Badge>
+                              {currentUser?.rollNumber === 'admin' && (
+                                <div className="flex gap-2">
+                                  <Button
+                                    onClick={() => handleApproveReturn(request.id)}
+                                    size="sm"
+                                    className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                                  >
+                                    <Check className="h-4 w-4 mr-1" />
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    onClick={() => handleRejectReturn(request.id)}
+                                    size="sm"
+                                    variant="destructive"
+                                  >
+                                    <X className="h-4 w-4 mr-1" />
+                                    Reject
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Users Tab */}
+          <TabsContent value="users" className="mt-6">
+            <Card className="bg-white shadow-lg border-0">
+              <CardHeader className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-t-lg">
+                <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                  <Users className="h-5 w-5" />
+                  Registered Users
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid gap-4">
+                  {convertedUsers.map((user) => (
+                    <Card key={user.id} className="border-l-4 border-l-purple-500 bg-white shadow-md">
+                      <CardContent className="p-4">
+                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                          <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-2">{user.name}</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600">
+                              <p><strong>Roll Number:</strong> {user.rollNumber}</p>
+                              <p><strong>Room:</strong> {user.roomNumber}</p>
+                              <p><strong>Phone:</strong> {user.phoneNumber}</p>
+                              <p><strong>Registered:</strong> {user.registeredDate}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="default">Active</Badge>
                             <Button
+                              onClick={() => window.open(`tel:${user.phoneNumber}`)}
                               size="sm"
                               variant="outline"
-                              onClick={() => setEditingItem(item)}
-                              className="border-gray-300 hover:bg-gray-50"
+                              className="border-purple-300 text-purple-600 hover:bg-purple-50"
                             >
-                              <Edit className="h-4 w-4" />
+                              <Phone className="h-4 w-4" />
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleDeleteInventoryItem(item.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              
-              {inventory.length === 0 && (
-                <Card className="bg-gray-50">
-                  <CardContent className="p-8 text-center">
-                    <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-600">No sports equipment added yet.</p>
-                    {isLoggedIn && <p className="text-sm text-gray-500 mt-2">Add your first item using the "Add Item" button above.</p>}
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="issues" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl md:text-2xl font-bold text-gray-800">Issue & Return Management</h2>
-            </div>
-
-            <div className="grid gap-4">
-              {sortedIssues.map((issue) => (
-                <Card key={issue.id} className={`border-l-4 ${issue.status === 'issued' ? 'border-l-yellow-500' : 'border-l-green-500'} bg-white shadow-md`}>
-                  <CardContent className="p-4">
-                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-800">{issue.item_name}</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 text-sm text-gray-600">
-                          <span>Student: {issue.student_name}</span>
-                          <span>Roll No: {issue.student_id}</span>
-                          <span>Room: {issue.room_number}</span>
-                          <span>Phone: {issue.phone_number}</span>
-                          <span>Issue Date: {issue.issue_date}</span>
-                          {issue.return_date && <span>Return Date: {issue.return_date}</span>}
-                          <span>
-                            <Badge variant={issue.status === 'issued' ? "default" : "secondary"}>
-                              {issue.status.toUpperCase()}
-                            </Badge>
-                          </span>
+                          </div>
                         </div>
-                        {issue.notes && <p className="text-sm text-gray-600 mt-1">Notes: {issue.notes}</p>}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              
-              {issues.length === 0 && (
-                <Card className="bg-gray-50">
-                  <CardContent className="p-8 text-center">
-                    <Activity className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-600">No items have been issued yet.</p>
-                    <p className="text-sm text-gray-500 mt-2">Start issuing equipment using the "Issue Item" button above.</p>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
+
+          {/* Authorized Students Tab - Admin Only */}
+          {currentUser?.rollNumber === 'admin' && (
+            <TabsContent value="authorized" className="mt-6">
+              <Card className="bg-white shadow-lg border-0">
+                <CardHeader className="bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-t-lg">
+                  <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                    <Shield className="h-5 w-5" />
+                    Authorized Students
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  {/* Bulk Upload Section */}
+                  <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <h3 className="text-lg font-medium mb-4 text-green-800">Bulk Upload Students</h3>
+                    <div className="flex flex-col sm:flex-row gap-4 items-end">
+                      <div className="flex-1">
+                        <Label htmlFor="studentsFile">Upload CSV File</Label>
+                        <Input
+                          id="studentsFile"
+                          type="file"
+                          accept=".csv"
+                          onChange={handleBulkStudentUpload}
+                          className="border-green-300 focus:border-green-500"
+                        />
+                      </div>
+                      <Button
+                        onClick={() => document.getElementById('studentsFile')?.click()}
+                        className="bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Students
+                      </Button>
+                    </div>
+                    <p className="text-xs text-green-600 mt-2">
+                      CSV should have columns: roll_number, name
+                    </p>
+                  </div>
+
+                  <div className="grid gap-4">
+                    {authorizedStudents.map((student) => (
+                      <Card key={student.id} className="border-l-4 border-l-green-500 bg-white shadow-md">
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h3 className="text-lg font-semibold text-gray-800">{student.name}</h3>
+                              <p className="text-sm text-gray-600">Roll Number: {student.roll_number}</p>
+                            </div>
+                            <Badge variant="default">Authorized</Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+
+          {/* Reports Tab - Admin Only */}
+          {currentUser?.rollNumber === 'admin' && (
+            <TabsContent value="reports" className="mt-6">
+              <Card className="bg-white shadow-lg border-0">
+                <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-t-lg">
+                  <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                    <Download className="h-5 w-5" />
+                    Reports & Analytics
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Card className="border-2 border-indigo-200">
+                      <CardContent className="p-4 text-center">
+                        <Download className="h-12 w-12 mx-auto mb-4 text-indigo-600" />
+                        <h3 className="text-lg font-semibold mb-2">Inventory Report</h3>
+                        <p className="text-sm text-gray-600 mb-4">Download complete inventory data</p>
+                        <Button className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600">
+                          Download CSV
+                        </Button>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-2 border-purple-200">
+                      <CardContent className="p-4 text-center">
+                        <Activity className="h-12 w-12 mx-auto mb-4 text-purple-600" />
+                        <h3 className="text-lg font-semibold mb-2">Issues Report</h3>
+                        <p className="text-sm text-gray-600 mb-4">Download all issue records</p>
+                        <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
+                          Download CSV
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 
-      {/* User Auth Components */}
-      <UserSignup
-        authorizedStudents={convertedAuthorizedStudents}
-        users={convertedUsers}
-        onUserRegister={handleUserRegister}
-        open={showSignup}
+      {/* Dialogs */}
+      <UserSignup 
+        open={showSignup} 
         onOpenChange={setShowSignup}
+        authorizedStudents={authorizedStudents}
+        onSignup={handleSignup}
       />
 
-      <UserSignin
+      <UserSignin 
+        open={showSignin} 
+        onOpenChange={setShowSignin}
         users={convertedUsers}
-        onUserLogin={handleUserLogin}
-        open={showUserSignin}
-        onOpenChange={setShowUserSignin}
+        onSignin={handleSignin}
       />
 
       {currentUser && (
-        <UserProfile
-          user={currentUser}
-          issues={issues.map(issue => ({
-            id: issue.id,
-            itemId: issue.item_id,
-            itemName: issue.item_name,
-            studentName: issue.student_name,
-            studentId: issue.student_id,
-            roomNumber: issue.room_number,
-            phoneNumber: issue.phone_number,
-            issueDate: issue.issue_date,
-            returnDate: issue.return_date,
-            status: issue.status as 'issued' | 'returned',
-            notes: issue.notes
-          }))}
-          onPasswordChange={handlePasswordChange}
-          onLogout={handleUserLogout}
-          open={showUserProfile}
-          onOpenChange={setShowUserProfile}
-        />
+        <>
+          <UserProfile
+            user={currentUser}
+            issues={convertedIssues}
+            onPasswordChange={handlePasswordChange}
+            onLogout={handleLogout}
+            open={showProfile}
+            onOpenChange={setShowProfile}
+          />
+
+          <TransferDialog
+            open={showTransferDialog}
+            onOpenChange={setShowTransferDialog}
+            item={selectedItemForTransfer}
+            currentUser={currentUser}
+            users={convertedUsers}
+            onTransfer={handleTransferRequest}
+          />
+
+          <NotificationsDialog
+            open={showNotifications}
+            onOpenChange={setShowNotifications}
+            notifications={notifications}
+            transferRequests={transferRequests}
+            currentUser={currentUser}
+            onApproveTransfer={handleApproveTransfer}
+            onRejectTransfer={handleRejectTransfer}
+            onMarkAsRead={handleMarkNotificationAsRead}
+          />
+        </>
       )}
+
+      {/* Request Dialog */}
+      <Dialog open={showRequestDialog} onOpenChange={setShowRequestDialog}>
+        <DialogContent className="bg-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-green-600">Request Item</DialogTitle>
+          </DialogHeader>
+          {selectedItem && (
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <h3 className="font-medium">{selectedItem.name}</h3>
+                <p className="text-sm text-gray-600">Category: {selectedItem.category}</p>
+                <p className="text-sm text-gray-600">Available: {selectedItem.available}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="studentName">Student Name</Label>
+                  <Input
+                    id="studentName"
+                    value={requestForm.studentName}
+                    onChange={(e) => setRequestForm({...requestForm, studentName: e.target.value})}
+                    className="border-gray-300 focus:border-green-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="studentId">Roll Number</Label>
+                  <Input
+                    id="studentId"
+                    value={requestForm.studentId}
+                    onChange={(e) => setRequestForm({...requestForm, studentId: e.target.value})}
+                    className="border-gray-300 focus:border-green-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="roomNumber">Room Number</Label>
+                  <Input
+                    id="roomNumber"
+                    value={requestForm.roomNumber}
+                    onChange={(e) => setRequestForm({...requestForm, roomNumber: e.target.value})}
+                    className="border-gray-300 focus:border-green-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phoneNumber">Phone Number</Label>
+                  <Input
+                    id="phoneNumber"
+                    value={requestForm.phoneNumber}
+                    onChange={(e) => setRequestForm({...requestForm, phoneNumber: e.target.value})}
+                    className="border-gray-300 focus:border-green-500"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes (optional)</Label>
+                <Textarea
+                  id="notes"
+                  value={requestForm.notes}
+                  onChange={(e) => setRequestForm({...requestForm, notes: e.target.value})}
+                  placeholder="Any additional notes..."
+                  rows={3}
+                  className="border-gray-300 focus:border-green-500"
+                />
+              </div>
+              <Button 
+                onClick={handleSubmitRequest} 
+                className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+              >
+                Submit Request
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Item Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="bg-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-orange-600">Edit Item</DialogTitle>
+          </DialogHeader>
+          {editingItem && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="editName">Item Name</Label>
+                <Input
+                  id="editName"
+                  value={editingItem.name}
+                  onChange={(e) => setEditingItem({...editingItem, name: e.target.value})}
+                  className="border-gray-300 focus:border-orange-500"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editCategory">Category</Label>
+                <Select value={editingItem.category} onValueChange={(value) => setEditingItem({...editingItem, category: value})}>
+                  <SelectTrigger className="border-gray-300 focus:border-orange-500">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Electronics">Electronics</SelectItem>
+                    <SelectItem value="Sports">Sports</SelectItem>
+                    <SelectItem value="Furniture">Furniture</SelectItem>
+                    <SelectItem value="Books">Books</SelectItem>
+                    <SelectItem value="Tools">Tools</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="editQuantity">Total Quantity</Label>
+                  <Input
+                    id="editQuantity"
+                    type="number"
+                    value={editingItem.quantity}
+                    onChange={(e) => setEditingItem({...editingItem, quantity: parseInt(e.target.value) || 0})}
+                    className="border-gray-300 focus:border-orange-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editAvailable">Available</Label>
+                  <Input
+                    id="editAvailable"
+                    type="number"
+                    value={editingItem.available}
+                    onChange={(e) => setEditingItem({...editingItem, available: parseInt(e.target.value) || 0})}
+                    className="border-gray-300 focus:border-orange-500"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editCondition">Condition</Label>
+                <Select value={editingItem.condition} onValueChange={(value) => setEditingItem({...editingItem, condition: value})}>
+                  <SelectTrigger className="border-gray-300 focus:border-orange-500">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Excellent">Excellent</SelectItem>
+                    <SelectItem value="Good">Good</SelectItem>
+                    <SelectItem value="Fair">Fair</SelectItem>
+                    <SelectItem value="Poor">Poor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button 
+                onClick={handleUpdateItem} 
+                className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+              >
+                Update Item
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Footer */}
       <div className="bg-gradient-to-r from-red-600 to-orange-600 text-white p-6 mt-12">
