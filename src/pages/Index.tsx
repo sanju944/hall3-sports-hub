@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft, Bell, Check, X, Phone, Upload, UserPlus, User } from 'lucide-react';
+import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft, Bell, Check, X, Phone, Upload, UserPlus, User, Linkedin } from 'lucide-react';
 import UserSignup from '@/components/UserSignup';
 import UserSignin from '@/components/UserSignin';
 import UserProfile from '@/components/UserProfile';
@@ -561,6 +560,17 @@ const Index = () => {
     );
   };
 
+  // Convert inventory data with proper field mapping
+  const convertedInventory = inventory.map(item => ({
+    id: item.id,
+    name: item.name,
+    category: item.category,
+    quantity: item.quantity,
+    available: item.available,
+    condition: item.condition,
+    addedDate: item.added_date
+  }));
+
   // Convert users data for components
   const convertedUsers = users.map(user => ({
     id: user.id,
@@ -983,7 +993,7 @@ const Index = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs md:text-sm opacity-90">Total Items</p>
-                  <p className="text-lg md:text-2xl font-bold">{inventory.length}</p>
+                  <p className="text-lg md:text-2xl font-bold">{convertedInventory.length}</p>
                 </div>
                 <Package className="h-6 w-6 md:h-8 md:w-8 opacity-80" />
               </div>
@@ -995,7 +1005,7 @@ const Index = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs md:text-sm opacity-90">Available</p>
-                  <p className="text-lg md:text-2xl font-bold">{inventory.reduce((sum, item) => sum + item.available, 0)}</p>
+                  <p className="text-lg md:text-2xl font-bold">{convertedInventory.reduce((sum, item) => sum + item.available, 0)}</p>
                 </div>
                 <Trophy className="h-6 w-6 md:h-8 md:w-8 opacity-80" />
               </div>
@@ -1109,7 +1119,7 @@ const Index = () => {
             </div>
 
             <div className="grid gap-4">
-              {inventory.map((item) => (
+              {convertedInventory.map((item) => (
                 <Card key={item.id} className="border-l-4 border-l-red-500 bg-white shadow-md">
                   <CardContent className="p-4">
                     <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
@@ -1121,7 +1131,7 @@ const Index = () => {
                           <span>Available: <Badge variant={item.available > 0 ? "default" : "destructive"}>{item.available}</Badge></span>
                           <span>Condition: <Badge variant="secondary">{item.condition}</Badge></span>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">Added: {item.added_date}</p>
+                        <p className="text-xs text-gray-500 mt-1">Added: {item.addedDate}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {currentUser && (
@@ -1296,7 +1306,17 @@ const Index = () => {
       <div className="bg-gradient-to-r from-red-600 to-orange-600 text-white p-6 mt-12">
         <div className="text-center">
           <p className="text-xl md:text-2xl font-bold mb-2">🔥 HALL 3 KA TEMPO HIGH HAI 🔥</p>
-          <p className="text-xs md:text-sm opacity-80">Website created by Sanjay Khara (Y23). All rights reserved</p>
+          <div className="flex items-center justify-center gap-2">
+            <p className="text-xs md:text-sm opacity-80">Website created by Sanjay Khara (Y23). All rights reserved</p>
+            <a 
+              href="https://www.linkedin.com/in/sanjay-khara-340abb2a0" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center w-6 h-6 bg-blue-600 hover:bg-blue-700 rounded transition-colors"
+            >
+              <Linkedin className="h-3 w-3 text-white" />
+            </a>
+          </div>
         </div>
       </div>
     </div>
