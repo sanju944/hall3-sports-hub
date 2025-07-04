@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft, Bell, Check, X, Phone, Upload, UserPlus, User, Linkedin } from 'lucide-react';
+import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft, Bell, Check, X, Phone, Upload, UserPlus, User, Linkedin, RefreshCw } from 'lucide-react';
 import UserSignup from '@/components/UserSignup';
 import UserSignin from '@/components/UserSignin';
 import UserProfile from '@/components/UserProfile';
@@ -234,6 +234,47 @@ const Index = () => {
         toast({
           title: "Upload Failed",
           description: "Failed to upload student list. Please try again.",
+          variant: "destructive",
+        });
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleReplaceStudentList = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const text = e.target?.result as string;
+        const lines = text.split('\n');
+        const students: { roll_number: string; name: string }[] = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (line) {
+            const [rollNumber, name] = line.split(',').map(item => item.trim().replace(/"/g, ''));
+            if (rollNumber && name) {
+              students.push({ roll_number: rollNumber, name });
+            }
+          }
+        }
+
+        // Clear existing authorized students and add new ones
+        await addAuthorizedStudents(students, true); // Pass true to replace existing data
+        setShowUploadDialog(false);
+        
+        toast({
+          title: "Student List Replaced",
+          description: `Previous list cleared. ${students.length} new authorized students loaded successfully.`,
+        });
+      } catch (error) {
+        console.error('Error replacing student list:', error);
+        toast({
+          title: "Replace Failed",
+          description: "Failed to replace student list. Please try again.",
           variant: "destructive",
         });
       }
@@ -611,9 +652,9 @@ const Index = () => {
     <div className="min-h-screen bg-white">
       {/* Hero Section with Logo */}
       <div className="relative h-56 md:h-72 bg-gradient-to-r from-slate-100 to-gray-100 border-b-4 border-red-500">
-        {/* Logo - Centered and Enlarged */}
+        {/* Logo - Updated with new image */}
         <img 
-          src="/lovable-uploads/5b532a8c-4c79-4972-b351-f890ab065309.png" 
+          src="/lovable-uploads/f4cee27c-9d5b-471d-93bc-0755082abef9.png" 
           alt="Hall-3 Sports Logo" 
           className="absolute top-3 md:top-6 left-1/2 transform -translate-x-1/2 h-12 w-12 md:h-20 md:w-20 lg:h-24 lg:w-24 object-contain z-10"
         />
@@ -755,6 +796,26 @@ const Index = () => {
                             Upload CSV with columns: Roll Number, Student Name
                           </p>
                         </div>
+                        
+                        {authorizedStudents.length > 0 && (
+                          <div className="border-t pt-4">
+                            <Label htmlFor="replace-file">Replace Current Student List</Label>
+                            <Input
+                              id="replace-file"
+                              type="file"
+                              accept=".csv,.xlsx,.xls"
+                              onChange={handleReplaceStudentList}
+                              className="border-gray-300 focus:border-red-500 mt-2"
+                            />
+                            <div className="flex items-center gap-2 mt-2">
+                              <RefreshCw className="h-4 w-4 text-orange-500" />
+                              <p className="text-xs text-orange-600">
+                                This will replace the current authorized student list
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        
                         <div className="text-sm text-gray-600">
                           <p>Current authorized students: <Badge>{authorizedStudents.length}</Badge></p>
                           <p>Registered users: <Badge>{users.length}</Badge></p>
