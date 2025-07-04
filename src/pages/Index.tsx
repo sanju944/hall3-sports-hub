@@ -13,6 +13,8 @@ import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, 
 import UserSignup from '@/components/UserSignup';
 import UserSignin from '@/components/UserSignin';
 import UserProfile from '@/components/UserProfile';
+import TransferDialog from '@/components/TransferDialog';
+import NotificationsDialog from '@/components/NotificationsDialog';
 import { useSupabaseData } from '@/hooks/useSupabaseData';
 
 interface User {
@@ -48,7 +50,6 @@ const Index = () => {
   const [showAddItem, setShowAddItem] = useState(false);
   const [showIssueDialog, setShowIssueDialog] = useState(false);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const { toast } = useToast();
@@ -60,6 +61,7 @@ const Index = () => {
     returnRequests,
     notifications,
     authorizedStudents,
+    transferRequests,
     loading,
     addInventoryItem,
     updateInventoryItem,
@@ -73,7 +75,9 @@ const Index = () => {
     addNotification,
     updateNotification,
     deleteNotification,
-    addAuthorizedStudents
+    addAuthorizedStudents,
+    addTransferRequest,
+    updateTransferRequest
   } = useSupabaseData();
 
   // Form states
@@ -541,6 +545,142 @@ const Index = () => {
     }
   };
 
+  const handleTransferRequest = async (transferData: {
+    itemId: string;
+    itemName: string;
+    fromUserId: string;
+    fromUserName: string;
+    toUserRollNumber: string;
+    toUserName: string;
+    notes?: string;
+  }) => {
+    try {
+      // Add transfer request
+      await addTransferRequest({
+        item_id: transferData.itemId,
+        item_name: transferData.itemName,
+        from_user_id: transferData.fromUserId,
+        from_user_name: transferData.fromUserName,
+        to_user_roll_number: transferData.toUserRollNumber,
+        to_user_name: transferData.toUserName,
+        notes: transferData.notes || null
+      });
+
+      // Add notification for recipient
+      await addNotification({
+        type: 'transfer_request',
+        message: `Transfer request: ${transferData.itemName} from ${transferData.fromUserName} (${transferData.fromUserId})`,
+        read: false,
+        data: { 
+          item_name: transferData.itemName, 
+          from_user: transferData.fromUserName,
+          from_user_id: transferData.fromUserId,
+          to_user: transferData.toUserName,
+          to_user_roll: transferData.toUserRollNumber
+        }
+      });
+
+      toast({
+        title: "Transfer Request Sent",
+        description: `Transfer request for ${transferData.itemName} sent to ${transferData.toUserName}`,
+      });
+    } catch (error) {
+      console.error('Error requesting transfer:', error);
+      toast({
+        title: "Transfer Failed",
+        description: "Failed to send transfer request. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleApproveTransfer = async (transferId: string) => {
+    const transfer = transferRequests.find(t => t.id === transferId);
+    if (!transfer) return;
+
+    try {
+      // Update transfer status
+      await updateTransferRequest(transferId, { status: 'approved' });
+
+      // Find the current issue
+      const currentIssue = issues.find(i => 
+        i.item_id === transfer.item_id && 
+        i.student_id === transfer.from_user_id && 
+        i.status === 'issued'
+      );
+
+      if (currentIssue) {
+        // Mark current issue as returned
+        await updateIssue(currentIssue.id, { 
+          status: 'returned',
+          return_date: new Date().toISOString().split('T')[0]
+        });
+
+        // Create new issue for recipient
+        const recipientUser = users.find(u => u.roll_number === transfer.to_user_roll_number);
+        if (recipientUser) {
+          await addIssue({
+            item_id: transfer.item_id,
+            item_name: transfer.item_name,
+            student_name: transfer.to_user_name,
+            student_id: transfer.to_user_roll_number,
+            room_number: recipientUser.room_number,
+            phone_number: recipientUser.phone_number,
+            issue_date: new Date().toISOString().split('T')[0],
+            status: 'issued',
+            notes: `Transferred from ${transfer.from_user_name} (${transfer.from_user_id})`,
+            return_date: null
+          });
+        }
+      }
+
+      // Remove notification
+      const notificationToRemove = notifications.find(n => 
+        n.data && typeof n.data === 'object' && 'from_user_id' in n.data && n.data.from_user_id === transfer.from_user_id
+      );
+      if (notificationToRemove) {
+        await deleteNotification(notificationToRemove.id);
+      }
+
+      toast({
+        title: "Transfer Approved",
+        description: `${transfer.item_name} transferred to ${transfer.to_user_name}`,
+      });
+    } catch (error) {
+      console.error('Error approving transfer:', error);
+      toast({
+        title: "Approval Failed",
+        description: "Failed to approve transfer. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRejectTransfer = async (transferId: string) => {
+    try {
+      await updateTransferRequest(transferId, { status: 'rejected' });
+
+      const notificationToRemove = notifications.find(n => 
+        n.data && typeof n.data === 'object' && 'transfer_id' in n.data && n.data.transfer_id === transferId
+      );
+      if (notificationToRemove) {
+        await deleteNotification(notificationToRemove.id);
+      }
+
+      toast({
+        title: "Transfer Rejected",
+        description: "Transfer request has been rejected.",
+      });
+    } catch (error) {
+      console.error('Error rejecting transfer:', error);
+      toast({
+        title: "Rejection Failed",
+        description: "Failed to reject transfer. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const exportToExcel = () => {
     const csvContent = [
       ['INVENTORY DATA'],
@@ -689,7 +829,23 @@ const Index = () => {
         )}
 
         {currentUser && (
-          <div className="absolute top-2 md:top-4 right-2 md:right-4 z-20">
+          <div className="absolute top-2 md:top-4 right-2 md:right-4 z-20 flex gap-2">
+            <NotificationsDialog
+              notifications={notifications.filter(n => 
+                n.data && typeof n.data === 'object' && 'to_user_roll' in n.data && 
+                n.data.to_user_roll === currentUser.rollNumber
+              )}
+              unreadCount={notifications.filter(n => 
+                !n.read && n.data && typeof n.data === 'object' && 'to_user_roll' in n.data && 
+                n.data.to_user_roll === currentUser.rollNumber
+              ).length}
+              onMarkAsRead={handleMarkNotificationAsRead}
+              onRemove={handleRemoveNotification}
+              onApproveTransfer={handleApproveTransfer}
+              onRejectTransfer={handleRejectTransfer}
+              onApproveReturn={handleApproveReturnRequest}
+              onRejectReturn={handleRejectReturnRequest}
+            />
             <Button 
               onClick={() => setShowUserProfile(true)}
               variant="outline" 
@@ -824,91 +980,6 @@ const Index = () => {
                     </DialogContent>
                   </Dialog>
                   
-                  <Dialog open={showNotifications} onOpenChange={setShowNotifications}>
-                    <DialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-white border-blue-500 text-blue-600 hover:bg-blue-50 relative"
-                      >
-                        <Bell className="h-3 w-3" />
-                        {unreadNotifications > 0 && (
-                          <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 text-xs bg-red-500">
-                            {unreadNotifications}
-                          </Badge>
-                        )}
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="bg-white max-w-md max-h-96 overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Notifications</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-2">
-                        {notifications.length === 0 ? (
-                          <p className="text-gray-500 text-center py-4">No notifications</p>
-                        ) : (
-                          notifications.map((notification) => (
-                            <div
-                              key={notification.id}
-                              className={`p-3 rounded-lg border ${notification.read ? 'bg-gray-50' : 'bg-blue-50 border-blue-200'} relative`}
-                            >
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="absolute top-1 right-1 h-6 w-6 p-0"
-                                onClick={() => handleRemoveNotification(notification.id)}
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
-                              <div onClick={() => handleMarkNotificationAsRead(notification.id)}>
-                                <p className="text-sm font-medium pr-6">{notification.message}</p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {new Date(notification.created_at).toLocaleString()}
-                                </p>
-                                {notification.type === 'return_request' && (
-                                  <div className="flex gap-2 mt-2">
-                                    <Button
-                                      size="sm"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const returnRequest = returnRequests.find(r => 
-                                          notification.data && typeof notification.data === 'object' && 'issue_id' in notification.data && r.issue_id === notification.data.issue_id
-                                        );
-                                        if (returnRequest) {
-                                          handleApproveReturnRequest(returnRequest.id);
-                                        }
-                                      }}
-                                      className="bg-green-500 hover:bg-green-600"
-                                    >
-                                      <Check className="h-3 w-3 mr-1" />
-                                      Approve
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="destructive"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const returnRequest = returnRequests.find(r => 
-                                          notification.data && typeof notification.data === 'object' && 'issue_id' in notification.data && r.issue_id === notification.data.issue_id
-                                        );
-                                        if (returnRequest) {
-                                          handleRejectReturnRequest(returnRequest.id);
-                                        }
-                                      }}
-                                    >
-                                      <X className="h-3 w-3 mr-1" />
-                                      Reject
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-
                   <Button
                     onClick={handleLogout}
                     variant="outline"
@@ -925,7 +996,7 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Issue/Return Action Buttons */}
+      {/* Issue/Return/Transfer Action Buttons */}
       {currentUser && (
         <div className="bg-white shadow-sm border-b">
           <div className="container mx-auto px-4 py-4">
@@ -976,6 +1047,25 @@ const Index = () => {
                   </div>
                 </DialogContent>
               </Dialog>
+
+              <TransferDialog
+                currentUser={currentUser}
+                issues={issues.map(issue => ({
+                  id: issue.id,
+                  item_id: issue.item_id,
+                  item_name: issue.item_name,
+                  student_name: issue.student_name,
+                  student_id: issue.student_id,
+                  room_number: issue.room_number,
+                  phone_number: issue.phone_number,
+                  issue_date: issue.issue_date,
+                  return_date: issue.return_date,
+                  status: issue.status,
+                  notes: issue.notes
+                }))}
+                users={convertedUsers}
+                onTransferRequest={handleTransferRequest}
+              />
 
               <Dialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
                 <DialogTrigger asChild>
