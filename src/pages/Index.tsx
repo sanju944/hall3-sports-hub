@@ -1,33 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useSupabaseData } from "@/hooks/useSupabaseData";
-import { 
-  User, 
-  Shield, 
-  UserPlus, 
-  Package, 
-  FileText, 
-  RotateCcw, 
-  Users, 
-  Plus, 
-  Upload, 
-  Pencil, 
-  Trash2,
-  ArrowRightLeft,
-  Check,
-  X
-} from 'lucide-react';
+import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft, Bell, Check, X, Phone, Upload, UserPlus, User, Linkedin, RefreshCw } from 'lucide-react';
+import UserSignup from '@/components/UserSignup';
+import UserSignin from '@/components/UserSignin';
 import UserProfile from '@/components/UserProfile';
-import NotificationsDialog from '@/components/NotificationsDialog';
+import { useSupabaseData } from '@/hooks/useSupabaseData';
 
 interface User {
   id: string;
@@ -47,60 +33,26 @@ interface InventoryItem {
   available: number;
   condition: string;
   addedDate: string;
-  notes?: string;
-}
-
-interface IssueRecord {
-  id: string;
-  itemId: string;
-  itemName: string;
-  studentName: string;
-  studentId: string;
-  roomNumber: string;
-  phoneNumber: string;
-  issueDate: string;
-  returnDate?: string;
-  status: 'issued' | 'returned';
-  notes?: string;
 }
 
 const Index = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
+  const [showSignup, setShowSignup] = useState(false);
   const [showUserSignin, setShowUserSignin] = useState(false);
-  const [showAdminSignin, setShowAdminSignin] = useState(false);
-  const [showUserSignup, setShowUserSignup] = useState(false);
-  const [showAddItem, setShowAddItem] = useState(false);
-  const [showEditItem, setShowEditItem] = useState(false);
-  const [showUploadStudents, setShowUploadStudents] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [showTransferDialog, setShowTransferDialog] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [showUserProfile, setShowUserProfile] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState('inventory');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [adminCredentials, setAdminCredentials] = useState({ username: '', password: '' });
-  const [userCredentials, setUserCredentials] = useState({ rollNumber: '', password: '' });
-  const [signupData, setSignupData] = useState({
-    rollNumber: '',
-    name: '',
-    phoneNumber: '',
-    roomNumber: '',
-    password: ''
-  });
-  const [newItem, setNewItem] = useState({
-    name: '',
-    category: '',
-    quantity: 0,
-    condition: 'Good',
-    notes: ''
-  });
-  const [transferData, setTransferData] = useState({
-    toRollNumber: '',
-    notes: ''
-  });
-  const [csvData, setCsvData] = useState('');
-
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [showIssueDialog, setShowIssueDialog] = useState(false);
+  const [showReturnDialog, setShowReturnDialog] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const { toast } = useToast();
+
   const {
     inventory,
     users,
@@ -108,7 +60,6 @@ const Index = () => {
     returnRequests,
     notifications,
     authorizedStudents,
-    transferRequests,
     loading,
     addInventoryItem,
     updateInventoryItem,
@@ -122,254 +73,228 @@ const Index = () => {
     addNotification,
     updateNotification,
     deleteNotification,
-    addAuthorizedStudents,
-    addTransferRequest,
-    updateTransferRequest
+    addAuthorizedStudents
   } = useSupabaseData();
 
-  const handleTransfer = async (transferData: {
-    itemId: string;
-    itemName: string;
-    toRollNumber: string;
-    notes?: string;
-  }) => {
-    if (!currentUser) return;
+  // Form states
+  const [newItem, setNewItem] = useState({
+    name: '',
+    category: '',
+    quantity: 0,
+    condition: 'Good'
+  });
 
-    const toUser = users.find(u => u.roll_number === transferData.toRollNumber);
-    if (!toUser) {
-      toast({
-        title: "Error",
-        description: "User with this roll number not found.",
-        variant: "destructive",
-      });
-      return;
+  const [issueForm, setIssueForm] = useState({
+    itemId: '',
+    notes: ''
+  });
+
+  const [returnForm, setReturnForm] = useState({
+    issueId: '',
+    notes: ''
+  });
+
+  useEffect(() => {
+    // Load auth state from localStorage
+    const savedAuth = localStorage.getItem('hall3-auth');
+    const savedCurrentUser = localStorage.getItem('hall3-current-user');
+
+    if (savedAuth === 'true') {
+      setIsLoggedIn(true);
     }
+    if (savedCurrentUser) {
+      setCurrentUser(JSON.parse(savedCurrentUser));
+    }
+  }, []);
 
-    try {
-      const transferRequest = {
-        item_id: transferData.itemId,
-        item_name: transferData.itemName,
-        from_user_id: currentUser.rollNumber,
-        from_user_name: currentUser.name,
-        to_user_id: transferData.toRollNumber,
-        to_user_name: toUser.name,
-        notes: transferData.notes || null,
-      };
-
-      await addTransferRequest(transferRequest);
-
-      // Create notification for the recipient
-      await addNotification({
-        type: 'transfer_request',
-        message: `${currentUser.name} wants to transfer "${transferData.itemName}" to you`,
-        data: { transfer_id: transferRequest.item_id }
-      });
-
+  const handleLogin = () => {
+    if (email === 'sanjaykhara9876@gmail.com' && password === 'Hall3isbest') {
+      setIsLoggedIn(true);
+      localStorage.setItem('hall3-auth', 'true');
+      setShowLogin(false);
+      setEmail('');
+      setPassword('');
       toast({
-        title: "Transfer Request Sent",
-        description: `Transfer request sent to ${toUser.name}`,
+        title: "Admin Login Successful",
+        description: "Welcome to Hall-3 Sports Inventory Admin Panel!",
       });
-
-      setShowTransferDialog(false);
-    } catch (error) {
-      console.error('Error creating transfer request:', error);
+    } else {
       toast({
-        title: "Error",
-        description: "Failed to send transfer request. Please try again.",
+        title: "Login Failed",
+        description: "Invalid admin credentials. Access denied.",
         variant: "destructive",
       });
     }
   };
 
-  const handleApproveTransfer = async (transferId: string) => {
-    const transfer = transferRequests.find(t => t.id === transferId);
-    if (!transfer) return;
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    localStorage.removeItem('hall3-auth');
+    setEmail('');
+    setPassword('');
+    toast({
+      title: "Admin Logged Out",
+      description: "You have been logged out successfully.",
+    });
+  };
 
+  const handleUserLogin = (user: User) => {
+    setCurrentUser(user);
+    localStorage.setItem('hall3-current-user', JSON.stringify(user));
+  };
+
+  const handleUserLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('hall3-current-user');
+    setShowUserProfile(false);
+    toast({
+      title: "Logged Out",
+      description: "You have been logged out successfully.",
+    });
+  };
+
+  const handleUserRegister = async (user: User) => {
     try {
-      // Update transfer request status
-      await updateTransferRequest(transferId, { status: 'approved' });
+      await addUser({
+        roll_number: user.rollNumber,
+        name: user.name,
+        phone_number: user.phoneNumber,
+        room_number: user.roomNumber,
+        password: user.password,
+        registered_date: user.registeredDate
+      });
+      toast({
+        title: "User Registered",
+        description: "User has been registered successfully.",
+      });
+    } catch (error) {
+      console.error('Error registering user:', error);
+      toast({
+        title: "Registration Failed",
+        description: "Failed to register user. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
-      // Find the current issue and update it to transfer to new user
-      const currentIssue = issues.find(issue => 
-        issue.item_id === transfer.item_id && 
-        issue.student_id === transfer.from_user_id && 
-        issue.status === 'issued'
-      );
+  const handlePasswordChange = async (userId: string, newPassword: string) => {
+    try {
+      await updateUser(userId, { password: newPassword });
 
-      if (currentIssue) {
-        // Return the item from the current user
-        await updateIssue(currentIssue.id, { 
-          status: 'returned',
-          return_date: new Date().toISOString().split('T')[0]
-        });
-
-        // Issue the item to the new user
-        await addIssue({
-          item_id: transfer.item_id,
-          item_name: transfer.item_name,
-          student_id: transfer.to_user_id,
-          student_name: transfer.to_user_name,
-          phone_number: users.find(u => u.roll_number === transfer.to_user_id)?.phone_number || '',
-          room_number: users.find(u => u.roll_number === transfer.to_user_id)?.room_number || '',
-          notes: `Transferred from ${transfer.from_user_name}`
-        });
+      if (currentUser && currentUser.id === userId) {
+        const updatedCurrentUser = { ...currentUser, password: newPassword };
+        setCurrentUser(updatedCurrentUser);
+        localStorage.setItem('hall3-current-user', JSON.stringify(updatedCurrentUser));
       }
 
       toast({
-        title: "Transfer Approved",
-        description: `Item transferred successfully to ${transfer.to_user_name}`,
-      });
-
-    } catch (error) {
-      console.error('Error approving transfer:', error);
-      toast({
-        title: "Error",
-        description: "Failed to approve transfer. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleRejectTransfer = async (transferId: string) => {
-    try {
-      await updateTransferRequest(transferId, { status: 'rejected' });
-      toast({
-        title: "Transfer Rejected",
-        description: "Transfer request has been rejected",
+        title: "Password Updated",
+        description: "Password has been updated successfully.",
       });
     } catch (error) {
-      console.error('Error rejecting transfer:', error);
+      console.error('Error updating password:', error);
       toast({
-        title: "Error",
-        description: "Failed to reject transfer. Please try again.",
+        title: "Update Failed",
+        description: "Failed to update password. Please try again.",
         variant: "destructive",
       });
     }
   };
 
-  const handleAdminSignin = () => {
-    if (adminCredentials.username === 'admin' && adminCredentials.password === 'admin123') {
-      setIsAdmin(true);
-      setCurrentUser({
-        id: 'admin',
-        rollNumber: 'ADMIN',
-        name: 'Administrator',
-        phoneNumber: '',
-        roomNumber: '',
-        password: 'admin123',
-        registeredDate: new Date().toISOString().split('T')[0]
-      });
-      setShowAdminSignin(false);
-      setAdminCredentials({ username: '', password: '' });
-      toast({
-        title: "Welcome Admin",
-        description: "You have successfully signed in as administrator.",
-      });
-    } else {
-      toast({
-        title: "Invalid Credentials",
-        description: "Please check your username and password.",
-        variant: "destructive",
-      });
-    }
+  const handleExcelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const text = e.target?.result as string;
+        const lines = text.split('\n');
+        const students: { roll_number: string; name: string }[] = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (line) {
+            const [rollNumber, name] = line.split(',').map(item => item.trim().replace(/"/g, ''));
+            if (rollNumber && name) {
+              students.push({ roll_number: rollNumber, name });
+            }
+          }
+        }
+
+        await addAuthorizedStudents(students);
+        setShowUploadDialog(false);
+        
+        toast({
+          title: "Student List Uploaded",
+          description: `${students.length} authorized students loaded successfully.`,
+        });
+      } catch (error) {
+        console.error('Error uploading students:', error);
+        toast({
+          title: "Upload Failed",
+          description: "Failed to upload student list. Please try again.",
+          variant: "destructive",
+        });
+      }
+    };
+    reader.readAsText(file);
   };
 
-  const handleUserSignin = () => {
-    const user = users.find(u => u.roll_number === userCredentials.rollNumber && u.password === userCredentials.password);
-    if (user) {
-      setCurrentUser({
-        id: user.id,
-        rollNumber: user.roll_number,
-        name: user.name,
-        phoneNumber: user.phone_number,
-        roomNumber: user.room_number,
-        password: user.password,
-        registeredDate: user.registered_date
-      });
-      setShowUserSignin(false);
-      setUserCredentials({ rollNumber: '', password: '' });
-      toast({
-        title: "Welcome",
-        description: `Hello ${user.name}! You have successfully signed in.`,
-      });
-    } else {
-      toast({
-        title: "Invalid Credentials",
-        description: "Please check your roll number and password.",
-        variant: "destructive",
-      });
-    }
+  const handleReplaceStudentList = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const text = e.target?.result as string;
+        const lines = text.split('\n');
+        const students: { roll_number: string; name: string }[] = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (line) {
+            const [rollNumber, name] = line.split(',').map(item => item.trim().replace(/"/g, ''));
+            if (rollNumber && name) {
+              students.push({ roll_number: rollNumber, name });
+            }
+          }
+        }
+
+        // Clear existing authorized students and add new ones
+        await addAuthorizedStudents(students, true); // Pass true to replace existing data
+        setShowUploadDialog(false);
+        
+        toast({
+          title: "Student List Replaced",
+          description: `Previous list cleared. ${students.length} new authorized students loaded successfully.`,
+        });
+      } catch (error) {
+        console.error('Error replacing student list:', error);
+        toast({
+          title: "Replace Failed",
+          description: "Failed to replace student list. Please try again.",
+          variant: "destructive",
+        });
+      }
+    };
+    reader.readAsText(file);
   };
 
-  const handleUserSignup = async () => {
-    if (!signupData.rollNumber || !signupData.name || !signupData.phoneNumber || !signupData.roomNumber || !signupData.password) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check if user already exists
-    const existingUser = users.find(u => u.roll_number === signupData.rollNumber);
-    if (existingUser) {
-      toast({
-        title: "User Already Exists",
-        description: "A user with this roll number already exists.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check if user is authorized
-    const isAuthorized = authorizedStudents.some(student => student.roll_number === signupData.rollNumber);
-    if (!isAuthorized) {
-      toast({
-        title: "Not Authorized",
-        description: "Your roll number is not in the authorized list. Please contact the administrator.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      await addUser({
-        roll_number: signupData.rollNumber,
-        name: signupData.name,
-        phone_number: signupData.phoneNumber,
-        room_number: signupData.roomNumber,
-        password: signupData.password
-      });
-
-      setSignupData({
-        rollNumber: '',
-        name: '',
-        phoneNumber: '',
-        roomNumber: '',
-        password: ''
-      });
-      setShowUserSignup(false);
-
-      toast({
-        title: "Account Created",
-        description: "Your account has been created successfully. You can now sign in.",
-      });
-    } catch (error) {
-      console.error('Error creating user:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create account. Please try again.",
-        variant: "destructive",
-      });
-    }
+  const isStudentAuthorized = (rollNumber: string, studentName: string) => {
+    if (authorizedStudents.length === 0) return true;
+    return authorizedStudents.some(student => 
+      student.roll_number.toLowerCase() === rollNumber.toLowerCase() && 
+      student.name.toLowerCase() === studentName.toLowerCase()
+    );
   };
 
-  const handleAddItem = async () => {
+  const handleAddInventoryItem = async () => {
     if (!newItem.name || !newItem.category || newItem.quantity <= 0) {
       toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields with valid values.",
+        title: "Error",
+        description: "Please fill all required fields.",
         variant: "destructive",
       });
       return;
@@ -382,223 +307,163 @@ const Index = () => {
         quantity: newItem.quantity,
         available: newItem.quantity,
         condition: newItem.condition,
-        notes: newItem.notes || null
+        added_date: new Date().toISOString().split('T')[0]
       });
 
-      setNewItem({
-        name: '',
-        category: '',
-        quantity: 0,
-        condition: 'Good',
-        notes: ''
-      });
+      setNewItem({ name: '', category: '', quantity: 0, condition: 'Good' });
       setShowAddItem(false);
-
+      
       toast({
         title: "Item Added",
-        description: "New inventory item has been added successfully.",
+        description: `${newItem.name} has been added to inventory.`,
       });
     } catch (error) {
       console.error('Error adding item:', error);
       toast({
-        title: "Error",
+        title: "Add Failed",
         description: "Failed to add item. Please try again.",
         variant: "destructive",
       });
     }
   };
 
-  const handleEditItem = async () => {
-    if (!selectedItem || !newItem.name || !newItem.category || newItem.quantity < 0) {
-      toast({
-        title: "Invalid Data",
-        description: "Please provide valid item information.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleDeleteInventoryItem = async (id: string) => {
     try {
-      const currentIssued = selectedItem.quantity - selectedItem.available;
-      const newAvailable = Math.max(0, newItem.quantity - currentIssued);
-
-      await updateInventoryItem(selectedItem.id, {
-        name: newItem.name,
-        category: newItem.category,
-        quantity: newItem.quantity,
-        available: newAvailable,
-        condition: newItem.condition,
-        notes: newItem.notes || null
-      });
-
-      setShowEditItem(false);
-      setSelectedItem(null);
-      setNewItem({
-        name: '',
-        category: '',
-        quantity: 0,
-        condition: 'Good',
-        notes: ''
-      });
-
-      toast({
-        title: "Item Updated",
-        description: "Inventory item has been updated successfully.",
-      });
-    } catch (error) {
-      console.error('Error updating item:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update item. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteItem = async (itemId: string) => {
-    const item = inventory.find(i => i.id === itemId);
-    if (!item) return;
-
-    // Check if item has active issues
-    const activeIssues = issues.filter(issue => issue.item_id === itemId && issue.status === 'issued');
-    if (activeIssues.length > 0) {
-      toast({
-        title: "Cannot Delete",
-        description: "This item has active issues and cannot be deleted.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      await deleteInventoryItem(itemId);
+      await deleteInventoryItem(id);
       toast({
         title: "Item Deleted",
-        description: "Inventory item has been deleted successfully.",
+        description: "Item has been removed from inventory.",
       });
     } catch (error) {
       console.error('Error deleting item:', error);
       toast({
-        title: "Error",
+        title: "Delete Failed",
         description: "Failed to delete item. Please try again.",
         variant: "destructive",
       });
     }
   };
 
-  const handleIssueItem = async (item: InventoryItem) => {
-    if (!currentUser || item.available <= 0) return;
+  const handleIssueItem = async () => {
+    if (!issueForm.itemId || !currentUser) {
+      toast({
+        title: "Error",
+        description: "Please select an item and make sure you're logged in.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const item = inventory.find(i => i.id === issueForm.itemId);
+    if (!item || item.available <= 0) {
+      toast({
+        title: "Error",
+        description: "Item not available for issue.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       // Add issue record
       await addIssue({
-        item_id: item.id,
+        item_id: issueForm.itemId,
         item_name: item.name,
-        student_id: currentUser.rollNumber,
         student_name: currentUser.name,
-        phone_number: currentUser.phoneNumber,
+        student_id: currentUser.rollNumber,
         room_number: currentUser.roomNumber,
-        notes: null
+        phone_number: currentUser.phoneNumber,
+        issue_date: new Date().toISOString().split('T')[0],
+        status: 'issued',
+        notes: issueForm.notes || null,
+        return_date: null
       });
 
       // Update inventory availability
-      await updateInventoryItem(item.id, {
-        available: item.available - 1
+      await updateInventoryItem(issueForm.itemId, { 
+        available: item.available - 1 
       });
 
-      // Create notification for admin
+      // Add notification
       await addNotification({
         type: 'issue',
-        message: `${currentUser.name} has issued "${item.name}"`,
-        data: { item_id: item.id, student_id: currentUser.rollNumber }
+        message: `New item issued: ${item.name} to ${currentUser.name} (${currentUser.rollNumber})`,
+        read: false,
+        data: { item_name: item.name, student_name: currentUser.name, student_id: currentUser.rollNumber }
       });
+
+      setIssueForm({ itemId: '', notes: '' });
+      setShowIssueDialog(false);
 
       toast({
         title: "Item Issued",
-        description: `${item.name} has been issued to you successfully.`,
+        description: `${item.name} issued successfully`,
       });
     } catch (error) {
       console.error('Error issuing item:', error);
       toast({
-        title: "Error",
+        title: "Issue Failed",
         description: "Failed to issue item. Please try again.",
         variant: "destructive",
       });
     }
   };
 
-  const handleRequestReturn = async (item: InventoryItem) => {
-    if (!currentUser) return;
-
-    // Check if user has this item issued
-    const userIssue = issues.find(issue => 
-      issue.item_id === item.id && 
-      issue.student_id === currentUser.rollNumber && 
-      issue.status === 'issued'
-    );
-
-    if (!userIssue) {
+  const handleRequestReturn = async () => {
+    if (!returnForm.issueId || !currentUser) {
       toast({
-        title: "No Active Issue",
-        description: "You don't have this item currently issued.",
+        title: "Error",
+        description: "Please select an item and make sure you're logged in.",
         variant: "destructive",
       });
       return;
     }
 
-    // Check if return request already exists
-    const existingRequest = returnRequests.find(request => 
-      request.issue_id === userIssue.id && 
-      request.status === 'pending'
-    );
-
-    if (existingRequest) {
-      toast({
-        title: "Request Already Exists",
-        description: "You already have a pending return request for this item.",
-        variant: "destructive",
-      });
-      return;
-    }
+    const issue = issues.find(i => i.id === returnForm.issueId);
+    if (!issue) return;
 
     try {
       await addReturnRequest({
-        issue_id: userIssue.id,
-        item_id: item.id,
-        item_name: item.name,
-        student_id: currentUser.rollNumber,
-        student_name: currentUser.name,
-        notes: null
+        issue_id: returnForm.issueId,
+        request_date: new Date().toISOString().split('T')[0],
+        status: 'pending',
+        notes: returnForm.notes || null
       });
 
-      // Create notification for admin
       await addNotification({
         type: 'return_request',
-        message: `${currentUser.name} has requested to return "${item.name}"`,
-        data: { return_id: userIssue.id, item_id: item.id }
+        message: `Return request for ${issue.item_name} by ${issue.student_name} (${issue.student_id})`,
+        read: false,
+        data: { issue_id: issue.id, item_name: issue.item_name, student_name: issue.student_name }
       });
 
+      setReturnForm({ issueId: '', notes: '' });
+      setShowReturnDialog(false);
+
       toast({
-        title: "Return Requested",
-        description: `Return request for ${item.name} has been submitted.`,
+        title: "Return Request Submitted",
+        description: `Return request for ${issue.item_name} has been submitted to admin.`,
       });
     } catch (error) {
       console.error('Error requesting return:', error);
       toast({
-        title: "Error",
+        title: "Request Failed",
         description: "Failed to submit return request. Please try again.",
         variant: "destructive",
       });
     }
   };
 
-  const handleApproveReturn = async (returnId: string) => {
-    const returnRequest = returnRequests.find(r => r.id === returnId);
+  const handleApproveReturnRequest = async (requestId: string) => {
+    const returnRequest = returnRequests.find(r => r.id === requestId);
     if (!returnRequest) return;
+
+    const issue = issues.find(i => i.id === returnRequest.issue_id);
+    if (!issue) return;
 
     try {
       // Update return request status
-      await updateReturnRequest(returnId, { status: 'approved' });
+      await updateReturnRequest(requestId, { status: 'approved' });
 
       // Update issue status
       await updateIssue(returnRequest.issue_id, { 
@@ -607,165 +472,148 @@ const Index = () => {
       });
 
       // Update inventory availability
-      const item = inventory.find(i => i.id === returnRequest.item_id);
+      const item = inventory.find(i => i.id === issue.item_id);
       if (item) {
-        await updateInventoryItem(item.id, {
-          available: item.available + 1
-        });
+        const newAvailable = Math.min(item.available + 1, item.quantity);
+        await updateInventoryItem(issue.item_id, { available: newAvailable });
+      }
+
+      // Remove notification
+      const notificationToRemove = notifications.find(n => 
+        n.data && typeof n.data === 'object' && 'issue_id' in n.data && n.data.issue_id === returnRequest.issue_id
+      );
+      if (notificationToRemove) {
+        await deleteNotification(notificationToRemove.id);
       }
 
       toast({
         title: "Return Approved",
-        description: `Return request for ${returnRequest.item_name} has been approved.`,
+        description: `${issue.item_name} return approved for ${issue.student_name}`,
       });
     } catch (error) {
       console.error('Error approving return:', error);
       toast({
-        title: "Error",
+        title: "Approval Failed",
         description: "Failed to approve return. Please try again.",
         variant: "destructive",
       });
     }
   };
 
-  const handleRejectReturn = async (returnId: string) => {
+  const handleRejectReturnRequest = async (requestId: string) => {
     try {
-      await updateReturnRequest(returnId, { status: 'rejected' });
+      await updateReturnRequest(requestId, { status: 'rejected' });
+
+      const notificationToRemove = notifications.find(n => 
+        n.data && typeof n.data === 'object' && 'issue_id' in n.data
+      );
+      if (notificationToRemove) {
+        await deleteNotification(notificationToRemove.id);
+      }
+
       toast({
-        title: "Return Rejected",
+        title: "Return Request Rejected",
         description: "Return request has been rejected.",
       });
     } catch (error) {
       console.error('Error rejecting return:', error);
       toast({
-        title: "Error",
+        title: "Rejection Failed",
         description: "Failed to reject return. Please try again.",
         variant: "destructive",
       });
     }
   };
 
-  const handleUploadStudents = async () => {
-    if (!csvData.trim()) {
-      toast({
-        title: "No Data",
-        description: "Please enter CSV data.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleMarkNotificationAsRead = async (id: string) => {
     try {
-      const lines = csvData.trim().split('\n');
-      const students = lines.map(line => {
-        const [roll_number, name] = line.split(',').map(s => s.trim());
-        return { roll_number, name };
-      }).filter(student => student.roll_number && student.name);
-
-      if (students.length === 0) {
-        toast({
-          title: "Invalid Data",
-          description: "No valid student data found. Please check the CSV format.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      await addAuthorizedStudents(students, true); // Replace existing data
-
-      setCsvData('');
-      setShowUploadStudents(false);
-
-      toast({
-        title: "Students Uploaded",
-        description: `${students.length} students have been added to the authorized list.`,
-      });
-    } catch (error) {
-      console.error('Error uploading students:', error);
-      toast({
-        title: "Error",
-        description: "Failed to upload students. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handlePasswordChange = async (userId: string, newPassword: string) => {
-    try {
-      await updateUser(userId, { password: newPassword });
-      
-      if (currentUser && currentUser.id === userId) {
-        setCurrentUser({ ...currentUser, password: newPassword });
-      }
-    } catch (error) {
-      console.error('Error updating password:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update password. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setIsAdmin(false);
-    setActiveTab('inventory');
-    toast({
-      title: "Signed Out",
-      description: "You have been signed out successfully.",
-    });
-  };
-
-  const handleMarkNotificationAsRead = async (notificationId: string) => {
-    try {
-      await updateNotification(notificationId, { read: true });
+      await updateNotification(id, { read: true });
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
   };
 
-  const handleRemoveNotification = async (notificationId: string) => {
+  const handleRemoveNotification = async (id: string) => {
     try {
-      await deleteNotification(notificationId);
+      await deleteNotification(id);
     } catch (error) {
       console.error('Error removing notification:', error);
     }
   };
 
-  const handleTransferSubmit = () => {
-    if (!selectedItem || !transferData.toRollNumber) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
-      return;
-    }
+  const exportToExcel = () => {
+    const csvContent = [
+      ['INVENTORY DATA'],
+      ['Item Name', 'Category', 'Total Quantity', 'Available', 'Condition', 'Added Date'],
+      ...inventory.map(item => [
+        item.name,
+        item.category,
+        item.quantity,
+        item.available,
+        item.condition,
+        item.added_date
+      ]),
+      [''],
+      ['ISSUE/RETURN DATA'],
+      ['Item Name', 'Student Name', 'Student ID', 'Room Number', 'Phone Number', 'Issue Date', 'Return Date', 'Status', 'Notes'],
+      ...issues.map(issue => [
+        issue.item_name,
+        issue.student_name,
+        issue.student_id,
+        issue.room_number,
+        issue.phone_number,
+        issue.issue_date,
+        issue.return_date || 'Not Returned',
+        issue.status,
+        issue.notes || ''
+      ]),
+      [''],
+      ['REGISTERED USERS DATA'],
+      ['Roll Number', 'Name', 'Phone Number', 'Room Number', 'Registration Date'],
+      ...users.map(user => [
+        user.roll_number,
+        user.name,
+        user.phone_number,
+        user.room_number,
+        user.registered_date
+      ])
+    ];
 
-    handleTransfer({
-      itemId: selectedItem.id,
-      itemName: selectedItem.name,
-      toRollNumber: transferData.toRollNumber,
-      notes: transferData.notes
+    const csvString = csvContent.map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Hall3_Sports_Inventory_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Data Exported",
+      description: "All data has been exported to CSV file.",
     });
-
-    setTransferData({ toRollNumber: '', notes: '' });
   };
 
-  // Convert database records to component interfaces
-  const convertedInventory: InventoryItem[] = inventory.map(item => ({
+  const getUserIssues = (studentId: string) => {
+    return issues.filter(issue => 
+      issue.student_id === studentId && 
+      issue.status === 'issued'
+    );
+  };
+
+  // Convert inventory data with proper field mapping
+  const convertedInventory = inventory.map(item => ({
     id: item.id,
     name: item.name,
     category: item.category,
     quantity: item.quantity,
     available: item.available,
     condition: item.condition,
-    addedDate: item.added_date,
-    notes: item.notes || undefined
+    addedDate: item.added_date
   }));
 
-  const convertedUsers: User[] = users.map(user => ({
+  // Convert users data for components
+  const convertedUsers = users.map(user => ({
     id: user.id,
     rollNumber: user.roll_number,
     name: user.name,
@@ -775,800 +623,763 @@ const Index = () => {
     registeredDate: user.registered_date
   }));
 
-  const convertedIssues: IssueRecord[] = issues.map(issue => ({
-    id: issue.id,
-    itemId: issue.item_id,
-    itemName: issue.item_name,
-    studentName: issue.student_name,
-    studentId: issue.student_id,
-    roomNumber: issue.room_number,
-    phoneNumber: issue.phone_number,
-    issueDate: issue.issue_date,
-    returnDate: issue.return_date || undefined,
-    status: issue.status as 'issued' | 'returned',
-    notes: issue.notes || undefined
+  const convertedAuthorizedStudents = authorizedStudents.map(student => ({
+    rollNumber: student.roll_number,
+    name: student.name
   }));
 
-  const userNotifications = notifications.filter(notification => {
-    if (isAdmin) {
-      return notification.type === 'issue' || notification.type === 'return_request';
-    } else {
-      return notification.type === 'transfer_request' && 
-             transferRequests.some(tr => 
-               tr.to_user_id === currentUser?.rollNumber && 
-               notification.data?.transfer_id === tr.item_id
-             );
-    }
+  const unreadNotifications = notifications.filter(n => !n.read).length;
+
+  // Sort issues by latest first
+  const sortedIssues = [...issues].sort((a, b) => {
+    const dateA = new Date(a.issue_date + 'T00:00:00');
+    const dateB = new Date(b.issue_date + 'T00:00:00');
+    return dateB.getTime() - dateA.getTime();
   });
-
-  const unreadCount = userNotifications.filter(n => !n.read).length;
-
-  useEffect(() => {
-    if (selectedItem && showEditItem) {
-      setNewItem({
-        name: selectedItem.name,
-        category: selectedItem.category,
-        quantity: selectedItem.quantity,
-        condition: selectedItem.condition,
-        notes: selectedItem.notes || ''
-      });
-    }
-  }, [selectedItem, showEditItem]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-600 mx-auto"></div>
-          <p className="mt-4 text-lg text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading Hall-3 Sports Inventory...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-purple-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <img 
-                  src="/lovable-uploads/f4cee27c-9d5b-471d-93bc-0755082abef9.png" 
-                  alt="Logo" 
-                  className="h-10 w-auto"
-                />
-              </div>
-              <div className="ml-4">
-                <h1 className="text-2xl font-bold text-purple-600">Inventory Management</h1>
-              </div>
+    <div className="min-h-screen bg-white">
+      {/* Hero Section with Logo */}
+      <div className="relative h-56 md:h-72 bg-gradient-to-r from-slate-100 to-gray-100 border-b-4 border-red-500">
+        {/* Logo - Updated with new image */}
+        <img 
+          src="/lovable-uploads/f4cee27c-9d5b-471d-93bc-0755082abef9.png" 
+          alt="Hall-3 Sports Logo" 
+          className="absolute top-3 md:top-6 left-1/2 transform -translate-x-1/2 h-12 w-12 md:h-20 md:w-20 lg:h-24 lg:w-24 object-contain z-10"
+        />
+        
+        {/* Student Auth Buttons */}
+        {!currentUser && !isLoggedIn && (
+          <>
+            <div className="absolute top-2 md:top-4 left-2 md:left-4 z-20">
+              <Button 
+                onClick={() => setShowSignup(true)}
+                variant="outline" 
+                size="sm"
+                className="bg-white border-green-500 text-green-600 hover:bg-green-50 shadow-lg text-xs"
+              >
+                <UserPlus className="h-3 w-3 mr-1" />
+                Sign Up
+              </Button>
             </div>
-            <div className="flex items-center space-x-4">
-              {currentUser && (
-                <>
-                  {/* Notifications - positioned on the left for users, right for admin */}
-                  {!isAdmin && (
-                    <NotificationsDialog
-                      notifications={userNotifications}
-                      unreadCount={unreadCount}
-                      onMarkAsRead={handleMarkNotificationAsRead}
-                      onRemove={handleRemoveNotification}
-                      onApproveTransfer={handleApproveTransfer}
-                      onRejectTransfer={handleRejectTransfer}
-                    />
-                  )}
+            
+            <div className="absolute top-2 md:top-4 right-2 md:right-4 z-20">
+              <Button 
+                onClick={() => setShowUserSignin(true)}
+                variant="outline" 
+                size="sm"
+                className="bg-white border-blue-500 text-blue-600 hover:bg-blue-50 shadow-lg text-xs"
+              >
+                <LogIn className="h-3 w-3 mr-1" />
+                Sign In
+              </Button>
+            </div>
+          </>
+        )}
+
+        {currentUser && (
+          <div className="absolute top-2 md:top-4 right-2 md:right-4 z-20">
+            <Button 
+              onClick={() => setShowUserProfile(true)}
+              variant="outline" 
+              size="sm"
+              className="bg-white border-purple-500 text-purple-600 hover:bg-purple-50 shadow-lg text-xs"
+            >
+              <User className="h-3 w-3 mr-1" />
+              {currentUser.name}
+            </Button>
+          </div>
+        )}
+        
+        {/* Main Title and Subtitle */}
+        <div className="relative z-10 flex flex-col items-center justify-center h-full pt-16 md:pt-24">
+          <div className="text-center text-gray-800 px-4">
+            <h1 className="text-lg md:text-3xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+              Hall-3 Sports Inventory Tracker
+            </h1>
+            <p className="text-xs md:text-lg lg:text-xl font-semibold text-gray-600 mb-4">
+              Sports Equipment Management System
+            </p>
+            
+            <div className="flex justify-center">
+              {!isLoggedIn ? (
+                <Dialog open={showLogin} onOpenChange={setShowLogin}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="bg-white border-red-500 text-red-600 hover:bg-red-50 shadow-lg text-xs"
+                    >
+                      <Shield className="h-3 w-3 mr-1" />
+                      Admin Login
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-white">
+                    <DialogHeader>
+                      <DialogTitle className="text-center text-red-600 text-xl font-bold flex items-center justify-center gap-2">
+                        <LogIn className="h-6 w-6" />
+                        Admin Login
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 p-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="border-gray-300 focus:border-red-500"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <Input
+                          id="password"
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="border-gray-300 focus:border-red-500"
+                          onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                        />
+                      </div>
+                      <Button 
+                        onClick={handleLogin} 
+                        className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
+                      >
+                        Login as Admin
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              ) : (
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Badge variant="default" className="bg-green-600 text-white text-xs">Admin</Badge>
+                  
+                  <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-white border-purple-500 text-purple-600 hover:bg-purple-50"
+                      >
+                        <Upload className="h-3 w-3 mr-1" />
+                        Upload
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-white">
+                      <DialogHeader>
+                        <DialogTitle>Upload Student List</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="excel-file">Upload Excel/CSV File</Label>
+                          <Input
+                            id="excel-file"
+                            type="file"
+                            accept=".csv,.xlsx,.xls"
+                            onChange={handleExcelUpload}
+                            className="border-gray-300 focus:border-red-500"
+                          />
+                          <p className="text-xs text-gray-500 mt-2">
+                            Upload CSV with columns: Roll Number, Student Name
+                          </p>
+                        </div>
+                        
+                        {authorizedStudents.length > 0 && (
+                          <div className="border-t pt-4">
+                            <Label htmlFor="replace-file">Replace Current Student List</Label>
+                            <Input
+                              id="replace-file"
+                              type="file"
+                              accept=".csv,.xlsx,.xls"
+                              onChange={handleReplaceStudentList}
+                              className="border-gray-300 focus:border-red-500 mt-2"
+                            />
+                            <div className="flex items-center gap-2 mt-2">
+                              <RefreshCw className="h-4 w-4 text-orange-500" />
+                              <p className="text-xs text-orange-600">
+                                This will replace the current authorized student list
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="text-sm text-gray-600">
+                          <p>Current authorized students: <Badge>{authorizedStudents.length}</Badge></p>
+                          <p>Registered users: <Badge>{users.length}</Badge></p>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  
+                  <Dialog open={showNotifications} onOpenChange={setShowNotifications}>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-white border-blue-500 text-blue-600 hover:bg-blue-50 relative"
+                      >
+                        <Bell className="h-3 w-3" />
+                        {unreadNotifications > 0 && (
+                          <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 text-xs bg-red-500">
+                            {unreadNotifications}
+                          </Badge>
+                        )}
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-white max-w-md max-h-96 overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Notifications</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-2">
+                        {notifications.length === 0 ? (
+                          <p className="text-gray-500 text-center py-4">No notifications</p>
+                        ) : (
+                          notifications.map((notification) => (
+                            <div
+                              key={notification.id}
+                              className={`p-3 rounded-lg border ${notification.read ? 'bg-gray-50' : 'bg-blue-50 border-blue-200'} relative`}
+                            >
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="absolute top-1 right-1 h-6 w-6 p-0"
+                                onClick={() => handleRemoveNotification(notification.id)}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                              <div onClick={() => handleMarkNotificationAsRead(notification.id)}>
+                                <p className="text-sm font-medium pr-6">{notification.message}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {new Date(notification.created_at).toLocaleString()}
+                                </p>
+                                {notification.type === 'return_request' && (
+                                  <div className="flex gap-2 mt-2">
+                                    <Button
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const returnRequest = returnRequests.find(r => 
+                                          notification.data && typeof notification.data === 'object' && 'issue_id' in notification.data && r.issue_id === notification.data.issue_id
+                                        );
+                                        if (returnRequest) {
+                                          handleApproveReturnRequest(returnRequest.id);
+                                        }
+                                      }}
+                                      className="bg-green-500 hover:bg-green-600"
+                                    >
+                                      <Check className="h-3 w-3 mr-1" />
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const returnRequest = returnRequests.find(r => 
+                                          notification.data && typeof notification.data === 'object' && 'issue_id' in notification.data && r.issue_id === notification.data.issue_id
+                                        );
+                                        if (returnRequest) {
+                                          handleRejectReturnRequest(returnRequest.id);
+                                        }
+                                      }}
+                                    >
+                                      <X className="h-3 w-3 mr-1" />
+                                      Reject
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+
                   <Button
-                    onClick={() => setShowProfile(true)}
-                    className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
+                    onClick={handleLogout}
+                    variant="outline"
+                    size="sm"
+                    className="bg-white border-red-500 text-red-600 hover:bg-red-50 text-xs"
                   >
-                    <User className="h-4 w-4 mr-2" />
-                    {currentUser.name}
+                    <LogOut className="h-3 w-3 mr-1" />
+                    Logout
                   </Button>
-                  {isAdmin && (
-                    <NotificationsDialog
-                      notifications={userNotifications}
-                      unreadCount={unreadCount}
-                      onMarkAsRead={handleMarkNotificationAsRead}
-                      onRemove={handleRemoveNotification}
-                      onApproveReturn={handleApproveReturn}
-                      onRejectReturn={handleRejectReturn}
-                    />
-                  )}
-                </>
+                </div>
               )}
             </div>
           </div>
         </div>
-      </header>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {!currentUser ? (
-          <div className="px-4 py-6 sm:px-0">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
-                Welcome to Inventory Management System
-              </h2>
-              <p className="mt-4 text-xl text-gray-600">
-                Sign in to manage your inventory efficiently
-              </p>
-            </div>
-            
-            <div className="flex justify-center space-x-4 mb-8">
-              <Button
-                onClick={() => setShowUserSignin(true)}
-                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
-              >
-                <User className="h-4 w-4 mr-2" />
-                Student Sign In
-              </Button>
-              <Button
-                onClick={() => setShowAdminSignin(true)}
-                className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
-              >
-                <Shield className="h-4 w-4 mr-2" />
-                Admin Sign In
-              </Button>
-            </div>
+      {/* Issue/Return Action Buttons */}
+      {currentUser && (
+        <div className="bg-white shadow-sm border-b">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Dialog open={showIssueDialog} onOpenChange={setShowIssueDialog}>
+                <DialogTrigger asChild>
+                  <Button className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 flex-1 sm:flex-none">
+                    <ArrowRight className="h-4 w-4 mr-2" />
+                    Issue Item
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-white max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Issue Sports Item</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm font-medium">Issuing to: {currentUser.name}</p>
+                      <p className="text-sm text-gray-600">Roll Number: {currentUser.rollNumber}</p>
+                    </div>
+                    <div>
+                      <Label htmlFor="item">Select Item</Label>
+                      <Select onValueChange={(value) => setIssueForm({...issueForm, itemId: value})}>
+                        <SelectTrigger className="border-gray-300 focus:border-red-500">
+                          <SelectValue placeholder="Select item to issue" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {inventory.filter(item => item.available > 0).map(item => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.name} (Available: {item.available})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="notes">Notes (Optional)</Label>
+                      <Textarea
+                        id="notes"
+                        value={issueForm.notes}
+                        onChange={(e) => setIssueForm({...issueForm, notes: e.target.value})}
+                        className="border-gray-300 focus:border-red-500"
+                      />
+                    </div>
+                    <Button onClick={handleIssueItem} className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
+                      Issue Item
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
 
-            <div className="text-center">
-              <p className="text-gray-600 mb-4">Don't have an account?</p>
+              <Dialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="border-blue-500 text-blue-600 hover:bg-blue-50 flex-1 sm:flex-none">
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Request Return
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-white max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Request Item Return</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="returnItem">Select Your Issued Item</Label>
+                      <Select onValueChange={(value) => setReturnForm({...returnForm, issueId: value})}>
+                        <SelectTrigger className="border-gray-300 focus:border-red-500">
+                          <SelectValue placeholder="Select your issued item" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getUserIssues(currentUser.rollNumber).map(issue => (
+                            <SelectItem key={issue.id} value={issue.id}>
+                              {issue.item_name} (Issued: {issue.issue_date})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="returnNotes">Return Notes (Optional)</Label>
+                      <Textarea
+                        id="returnNotes"
+                        value={returnForm.notes}
+                        onChange={(e) => setReturnForm({...returnForm, notes: e.target.value})}
+                        className="border-gray-300 focus:border-red-500"
+                        placeholder="Any damage or notes about the return..."
+                      />
+                    </div>
+                    <Button onClick={handleRequestReturn} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700">
+                      Request Return
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Controls Bar */}
+      {isLoggedIn && (
+        <div className="bg-red-600 text-white shadow-lg">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <h2 className="text-lg font-bold">Admin Dashboard</h2>
+              </div>
               <Button
-                onClick={() => setShowUserSignup(true)}
+                onClick={exportToExcel}
                 variant="outline"
-                className="border-purple-200 text-purple-600 hover:bg-purple-50"
+                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
               >
-                <UserPlus className="h-4 w-4 mr-2" />
-                Student Sign Up
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
               </Button>
             </div>
           </div>
-        ) : (
-          <div className="px-4 py-6 sm:px-0">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-4 bg-white border border-purple-200">
-                <TabsTrigger 
-                  value="inventory" 
-                  className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700"
-                >
-                  <Package className="h-4 w-4 mr-2" />
-                  Inventory
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="issues" 
-                  className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700"
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Issues
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="returns" 
-                  className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700"
-                >
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Returns
-                </TabsTrigger>
-                {isAdmin && (
-                  <TabsTrigger 
-                    value="users" 
-                    className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700"
-                  >
-                    <Users className="h-4 w-4 mr-2" />
-                    Users
-                  </TabsTrigger>
-                )}
-              </TabsList>
+        </div>
+      )}
 
-              {/* Inventory Tab */}
-              <TabsContent value="inventory" className="space-y-4">
-                <div className="bg-white rounded-lg shadow border border-purple-100">
-                  <div className="p-6 border-b border-purple-100">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-                      <h3 className="text-lg font-medium text-gray-900">Available Items</h3>
-                      {isAdmin && (
-                        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-                          <Button 
-                            onClick={() => setShowAddItem(true)}
-                            className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 w-full sm:w-auto"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Item
-                          </Button>
-                          <Button 
-                            onClick={() => setShowUploadStudents(true)}
-                            variant="outline"
-                            className="border-blue-200 text-blue-600 hover:bg-blue-50 w-full sm:w-auto"
-                          >
-                            <Upload className="h-4 w-4 mr-2" />
-                            Upload Students
-                          </Button>
+      {/* Stats Cards */}
+      <div className="container mx-auto px-4 py-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mb-6">
+          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg">
+            <CardContent className="p-3 md:p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs md:text-sm opacity-90">Total Items</p>
+                  <p className="text-lg md:text-2xl font-bold">{convertedInventory.length}</p>
+                </div>
+                <Package className="h-6 w-6 md:h-8 md:w-8 opacity-80" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg">
+            <CardContent className="p-3 md:p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs md:text-sm opacity-90">Available</p>
+                  <p className="text-lg md:text-2xl font-bold">{convertedInventory.reduce((sum, item) => sum + item.available, 0)}</p>
+                </div>
+                <Trophy className="h-6 w-6 md:h-8 md:w-8 opacity-80" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white shadow-lg">
+            <CardContent className="p-3 md:p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs md:text-sm opacity-90">Issued</p>
+                  <p className="text-lg md:text-2xl font-bold">{issues.filter(i => i.status === 'issued').length}</p>
+                </div>
+                <Users className="h-6 w-6 md:h-8 md:w-8 opacity-80" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg">
+            <CardContent className="p-3 md:p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs md:text-sm opacity-90">Users</p>
+                  <p className="text-lg md:text-2xl font-bold">{users.length}</p>
+                </div>
+                <Activity className="h-6 w-6 md:h-8 md:w-8 opacity-80" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100">
+            <TabsTrigger value="inventory" className="data-[state=active]:bg-white">Sports Inventory</TabsTrigger>
+            <TabsTrigger value="issues" className="data-[state=active]:bg-white">Issue & Return</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="inventory" className="space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h2 className="text-xl md:text-2xl font-bold text-gray-800">Sports Inventory</h2>
+              {isLoggedIn && (
+                <Dialog open={showAddItem} onOpenChange={setShowAddItem}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Item
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-white">
+                    <DialogHeader>
+                      <DialogTitle>Add New Sports Item</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="name">Item Name</Label>
+                        <Input
+                          id="name"
+                          value={newItem.name}
+                          onChange={(e) => setNewItem({...newItem, name: e.target.value})}
+                          className="border-gray-300 focus:border-red-500"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="category">Category</Label>
+                        <Select onValueChange={(value) => setNewItem({...newItem, category: value})}>
+                          <SelectTrigger className="border-gray-300 focus:border-red-500">
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Cricket">Cricket</SelectItem>
+                            <SelectItem value="Football">Football</SelectItem>
+                            <SelectItem value="Basketball">Basketball</SelectItem>
+                            <SelectItem value="Badminton">Badminton</SelectItem>
+                            <SelectItem value="Tennis">Tennis</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="quantity">Quantity</Label>
+                        <Input
+                          id="quantity"
+                          type="number"
+                          value={newItem.quantity}
+                          onChange={(e) => setNewItem({...newItem, quantity: parseInt(e.target.value) || 0})}
+                          className="border-gray-300 focus:border-red-500"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="condition">Condition</Label>
+                        <Select onValueChange={(value) => setNewItem({...newItem, condition: value})}>
+                          <SelectTrigger className="border-gray-300 focus:border-red-500">
+                            <SelectValue placeholder="Select condition" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Excellent">Excellent</SelectItem>
+                            <SelectItem value="Good">Good</SelectItem>
+                            <SelectItem value="Fair">Fair</SelectItem>
+                            <SelectItem value="Poor">Poor</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button onClick={handleAddInventoryItem} className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600">
+                        Add Item
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
+
+            <div className="grid gap-4">
+              {convertedInventory.map((item) => (
+                <Card key={item.id} className="border-l-4 border-l-red-500 bg-white shadow-md">
+                  <CardContent className="p-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-gray-800">{item.name}</h3>
+                        <div className="flex flex-wrap gap-2 mt-2 text-sm text-gray-600">
+                          <span>Category: <Badge variant="outline" className="border-red-200 text-red-700">{item.category}</Badge></span>
+                          <span>Total: {item.quantity}</span>
+                          <span>Available: <Badge variant={item.available > 0 ? "default" : "destructive"}>{item.available}</Badge></span>
+                          <span>Condition: <Badge variant="secondary">{item.condition}</Badge></span>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="p-6">
-                    <div className="space-y-4">
-                      {convertedInventory
-                        .filter(item => 
-                          item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          item.category.toLowerCase().includes(searchTerm.toLowerCase())
-                        )
-                        .map((item) => (
-                          <div key={item.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0">
-                              <div className="flex-1">
-                                <h4 className="font-medium text-gray-900">{item.name}</h4>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 text-sm text-gray-600">
-                                  <div>Category: <span className="font-medium">{item.category}</span></div>
-                                  <div>Available: <span className="font-medium text-green-600">{item.available}</span></div>
-                                  <div>Total: <span className="font-medium">{item.quantity}</span></div>
-                                  <div>Condition: <span className="font-medium">{item.condition}</span></div>
+                        <p className="text-xs text-gray-500 mt-1">Added: {item.addedDate}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {currentUser && (
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={item.available <= 0}
+                                className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 disabled:opacity-50"
+                              >
+                                <ArrowRight className="h-4 w-4 mr-1" />
+                                Issue
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="bg-white max-w-md">
+                              <DialogHeader>
+                                <DialogTitle>Issue {item.name}</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4">
+                                <div className="p-3 bg-gray-50 rounded-lg">
+                                  <p className="text-sm font-medium">Item: {item.name}</p>
+                                  <p className="text-sm text-gray-600">Available: {item.available}</p>
+                                  <p className="text-sm text-gray-600">Issuing to: {currentUser.name} ({currentUser.rollNumber})</p>
                                 </div>
-                              </div>
-                              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
-                                {!isAdmin && item.available > 0 && (
-                                  <>
-                                    <Button
-                                      onClick={() => handleIssueItem(item)}
-                                      size="sm"
-                                      className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 w-full sm:w-auto"
-                                    >
-                                      <Package className="h-3 w-3 mr-1" />
-                                      Issue
-                                    </Button>
-                                    <Button
-                                      onClick={() => {
-                                        setSelectedItem(item);
-                                        setShowTransferDialog(true);
-                                      }}
-                                      size="sm"
-                                      className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 w-full sm:w-auto"
-                                    >
-                                      <ArrowRightLeft className="h-3 w-3 mr-1" />
-                                      Transfer
-                                    </Button>
-                                    <Button
-                                      onClick={() => handleRequestReturn(item)}
-                                      size="sm"
-                                      variant="outline"
-                                      className="border-purple-200 text-purple-600 hover:bg-purple-50 w-full sm:w-auto"
-                                    >
-                                      <RotateCcw className="h-3 w-3 mr-1" />
-                                      Request
-                                    </Button>
-                                  </>
-                                )}
-                                {isAdmin && (
-                                  <div className="flex space-x-2 w-full sm:w-auto">
-                                    <Button
-                                      onClick={() => {
-                                        setSelectedItem(item);
-                                        setShowEditItem(true);
-                                      }}
-                                      size="sm"
-                                      variant="outline"
-                                      className="border-blue-200 text-blue-600 hover:bg-blue-50 flex-1 sm:flex-none"
-                                    >
-                                      <Pencil className="h-3 w-3 mr-1" />
-                                      Edit
-                                    </Button>
-                                    <Button
-                                      onClick={() => handleDeleteItem(item.id)}
-                                      size="sm"
-                                      variant="outline"
-                                      className="border-red-200 text-red-600 hover:bg-red-50 flex-1 sm:flex-none"
-                                    >
-                                      <Trash2 className="h-3 w-3 mr-1" />
-                                      Delete
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-
-              {/* Issues Tab */}
-              <TabsContent value="issues" className="space-y-4">
-                <div className="bg-white rounded-lg shadow border border-purple-100">
-                  <div className="p-6 border-b border-purple-100">
-                    <h3 className="text-lg font-medium text-gray-900">Issue Records</h3>
-                  </div>
-                  <div className="p-6">
-                    <div className="space-y-4">
-                      {convertedIssues
-                        .filter(issue => isAdmin || issue.studentId === currentUser?.rollNumber)
-                        .map((issue) => (
-                          <div key={issue.id} className="border border-gray-200 rounded-lg p-4">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
-                              <div className="flex-1">
-                                <h4 className="font-medium text-gray-900">{issue.itemName}</h4>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2 text-sm text-gray-600">
-                                  <div>Student: <span className="font-medium">{issue.studentName}</span></div>
-                                  <div>Issue Date: <span className="font-medium">{issue.issueDate}</span></div>
-                                  <div>Status: 
-                                    <Badge 
-                                      variant={issue.status === 'issued' ? 'default' : 'secondary'}
-                                      className="ml-1"
-                                    >
-                                      {issue.status}
-                                    </Badge>
-                                  </div>
+                                <div>
+                                  <Label htmlFor="notes">Notes (Optional)</Label>
+                                  <Textarea
+                                    id="notes"
+                                    value={issueForm.notes}
+                                    onChange={(e) => setIssueForm({...issueForm, notes: e.target.value})}
+                                    className="border-gray-300 focus:border-red-500"
+                                  />
                                 </div>
-                                {issue.returnDate && (
-                                  <div className="text-sm text-gray-600 mt-1">
-                                    Return Date: <span className="font-medium">{issue.returnDate}</span>
-                                  </div>
-                                )}
+                                <Button 
+                                  onClick={() => {
+                                    setIssueForm({...issueForm, itemId: item.id});
+                                    handleIssueItem();
+                                  }} 
+                                  className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                                >
+                                  Issue {item.name}
+                                </Button>
                               </div>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-
-              {/* Returns Tab */}
-              <TabsContent value="returns" className="space-y-4">
-                <div className="bg-white rounded-lg shadow border border-purple-100">
-                  <div className="p-6 border-b border-purple-100">
-                    <h3 className="text-lg font-medium text-gray-900">Return Requests</h3>
-                  </div>
-                  <div className="p-6">
-                    <div className="space-y-4">
-                      {returnRequests
-                        .filter(request => isAdmin || request.student_id === currentUser?.rollNumber)
-                        .map((request) => (
-                          <div key={request.id} className="border border-gray-200 rounded-lg p-4">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0">
-                              <div className="flex-1">
-                                <h4 className="font-medium text-gray-900">{request.item_name}</h4>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2 text-sm text-gray-600">
-                                  <div>Student: <span className="font-medium">{request.student_name}</span></div>
-                                  <div>Request Date: <span className="font-medium">{request.request_date}</span></div>
-                                  <div>Status: 
-                                    <Badge 
-                                      variant={
-                                        request.status === 'pending' ? 'default' : 
-                                        request.status === 'approved' ? 'secondary' : 'destructive'
-                                      }
-                                      className="ml-1"
-                                    >
-                                      {request.status}
-                                    </Badge>
-                                  </div>
-                                </div>
-                              </div>
-                              {isAdmin && request.status === 'pending' && (
-                                <div className="flex space-x-2">
-                                  <Button
-                                    onClick={() => handleApproveReturn(request.id)}
-                                    size="sm"
-                                    className="bg-green-500 hover:bg-green-600"
-                                  >
-                                    <Check className="h-3 w-3 mr-1" />
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    onClick={() => handleRejectReturn(request.id)}
-                                    size="sm"
-                                    variant="destructive"
-                                  >
-                                    <X className="h-3 w-3 mr-1" />
-                                    Reject
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-
-              {/* Users Tab (Admin only) */}
-              {isAdmin && (
-                <TabsContent value="users" className="space-y-4">
-                  <div className="bg-white rounded-lg shadow border border-purple-100">
-                    <div className="p-6 border-b border-purple-100">
-                      <h3 className="text-lg font-medium text-gray-900">Registered Users</h3>
-                    </div>
-                    <div className="p-6">
-                      <div className="space-y-4">
-                        {convertedUsers.map((user) => (
-                          <div key={user.id} className="border border-gray-200 rounded-lg p-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                              <div>
-                                <Label className="text-sm text-gray-600">Name</Label>
-                                <p className="font-medium">{user.name}</p>
-                              </div>
-                              <div>
-                                <Label className="text-sm text-gray-600">Roll Number</Label>
-                                <p className="font-medium">{user.rollNumber}</p>
-                              </div>
-                              <div>
-                                <Label className="text-sm text-gray-600">Phone</Label>
-                                <p className="font-medium">{user.phoneNumber}</p>
-                              </div>
-                              <div>
-                                <Label className="text-sm text-gray-600">Room</Label>
-                                <p className="font-medium">{user.roomNumber}</p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                            </DialogContent>
+                          </Dialog>
+                        )}
+                        
+                        {isLoggedIn && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setEditingItem(item)}
+                              className="border-gray-300 hover:bg-gray-50"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDeleteInventoryItem(item.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
-                  </div>
-                </TabsContent>
+                  </CardContent>
+                </Card>
+              ))}
+              
+              {inventory.length === 0 && (
+                <Card className="bg-gray-50">
+                  <CardContent className="p-8 text-center">
+                    <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-600">No sports equipment added yet.</p>
+                    {isLoggedIn && <p className="text-sm text-gray-500 mt-2">Add your first item using the "Add Item" button above.</p>}
+                  </CardContent>
+                </Card>
               )}
-            </Tabs>
-          </div>
-        )}
-      </main>
+            </div>
+          </TabsContent>
 
-      {/* User Profile Dialog */}
+          <TabsContent value="issues" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl md:text-2xl font-bold text-gray-800">Issue & Return Management</h2>
+            </div>
+
+            <div className="grid gap-4">
+              {sortedIssues.map((issue) => (
+                <Card key={issue.id} className={`border-l-4 ${issue.status === 'issued' ? 'border-l-yellow-500' : 'border-l-green-500'} bg-white shadow-md`}>
+                  <CardContent className="p-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-gray-800">{issue.item_name}</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 text-sm text-gray-600">
+                          <span>Student: {issue.student_name}</span>
+                          <span>Roll No: {issue.student_id}</span>
+                          <span>Room: {issue.room_number}</span>
+                          <span>Phone: {issue.phone_number}</span>
+                          <span>Issue Date: {issue.issue_date}</span>
+                          {issue.return_date && <span>Return Date: {issue.return_date}</span>}
+                          <span>
+                            <Badge variant={issue.status === 'issued' ? "default" : "secondary"}>
+                              {issue.status.toUpperCase()}
+                            </Badge>
+                          </span>
+                        </div>
+                        {issue.notes && <p className="text-sm text-gray-600 mt-1">Notes: {issue.notes}</p>}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              
+              {issues.length === 0 && (
+                <Card className="bg-gray-50">
+                  <CardContent className="p-8 text-center">
+                    <Activity className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-600">No items have been issued yet.</p>
+                    <p className="text-sm text-gray-500 mt-2">Start issuing equipment using the "Issue Item" button above.</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* User Auth Components */}
+      <UserSignup
+        authorizedStudents={convertedAuthorizedStudents}
+        users={convertedUsers}
+        onUserRegister={handleUserRegister}
+        open={showSignup}
+        onOpenChange={setShowSignup}
+      />
+
+      <UserSignin
+        users={convertedUsers}
+        onUserLogin={handleUserLogin}
+        open={showUserSignin}
+        onOpenChange={setShowUserSignin}
+      />
+
       {currentUser && (
         <UserProfile
           user={currentUser}
-          issues={convertedIssues}
+          issues={issues.map(issue => ({
+            id: issue.id,
+            itemId: issue.item_id,
+            itemName: issue.item_name,
+            studentName: issue.student_name,
+            studentId: issue.student_id,
+            roomNumber: issue.room_number,
+            phoneNumber: issue.phone_number,
+            issueDate: issue.issue_date,
+            returnDate: issue.return_date,
+            status: issue.status as 'issued' | 'returned',
+            notes: issue.notes
+          }))}
           onPasswordChange={handlePasswordChange}
-          onLogout={handleLogout}
-          open={showProfile}
-          onOpenChange={setShowProfile}
+          onLogout={handleUserLogout}
+          open={showUserProfile}
+          onOpenChange={setShowUserProfile}
         />
       )}
 
-      {/* User Sign In Dialog */}
-      <Dialog open={showUserSignin} onOpenChange={setShowUserSignin}>
-        <DialogContent className="bg-white max-w-md">
-          <DialogHeader>
-            <DialogTitle>Student Sign In</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="rollNumber">Roll Number</Label>
-              <Input
-                id="rollNumber"
-                value={userCredentials.rollNumber}
-                onChange={(e) => setUserCredentials({...userCredentials, rollNumber: e.target.value})}
-                className="border-gray-300 focus:border-purple-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={userCredentials.password}
-                onChange={(e) => setUserCredentials({...userCredentials, password: e.target.value})}
-                className="border-gray-300 focus:border-purple-500"
-              />
-            </div>
-            <Button 
-              onClick={handleUserSignin} 
-              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+      {/* Footer */}
+      <div className="bg-gradient-to-r from-red-600 to-orange-600 text-white p-6 mt-12">
+        <div className="text-center">
+          <p className="text-xl md:text-2xl font-bold mb-2">🔥 HALL 3 KA TEMPO HIGH HAI 🔥</p>
+          <div className="flex items-center justify-center gap-2">
+            <p className="text-xs md:text-sm opacity-80">Website created by Sanjay Khara (Y23). All rights reserved</p>
+            <a 
+              href="https://www.linkedin.com/in/sanjay-khara-340abb2a0" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center w-6 h-6 bg-blue-600 hover:bg-blue-700 rounded transition-colors"
             >
-              Sign In
-            </Button>
+              <Linkedin className="h-3 w-3 text-white" />
+            </a>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Admin Sign In Dialog */}
-      <Dialog open={showAdminSignin} onOpenChange={setShowAdminSignin}>
-        <DialogContent className="bg-white max-w-md">
-          <DialogHeader>
-            <DialogTitle>Admin Sign In</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="adminUsername">Username</Label>
-              <Input
-                id="adminUsername"
-                value={adminCredentials.username}
-                onChange={(e) => setAdminCredentials({...adminCredentials, username: e.target.value})}
-                className="border-gray-300 focus:border-purple-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="adminPassword">Password</Label>
-              <Input
-                id="adminPassword"
-                type="password"
-                value={adminCredentials.password}
-                onChange={(e) => setAdminCredentials({...adminCredentials, password: e.target.value})}
-                className="border-gray-300 focus:border-purple-500"
-              />
-            </div>
-            <Button 
-              onClick={handleAdminSignin} 
-              className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
-            >
-              Sign In
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* User Sign Up Dialog */}
-      <Dialog open={showUserSignup} onOpenChange={setShowUserSignup}>
-        <DialogContent className="bg-white max-w-md">
-          <DialogHeader>
-            <DialogTitle>Student Sign Up</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="signupRollNumber">Roll Number</Label>
-              <Input
-                id="signupRollNumber"
-                value={signupData.rollNumber}
-                onChange={(e) => setSignupData({...signupData, rollNumber: e.target.value})}
-                className="border-gray-300 focus:border-purple-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="signupName">Full Name</Label>
-              <Input
-                id="signupName"
-                value={signupData.name}
-                onChange={(e) => setSignupData({...signupData, name: e.target.value})}
-                className="border-gray-300 focus:border-purple-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="signupPhone">Phone Number</Label>
-              <Input
-                id="signupPhone"
-                value={signupData.phoneNumber}
-                onChange={(e) => setSignupData({...signupData, phoneNumber: e.target.value})}
-                className="border-gray-300 focus:border-purple-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="signupRoom">Room Number</Label>
-              <Input
-                id="signupRoom"
-                value={signupData.roomNumber}
-                onChange={(e) => setSignupData({...signupData, roomNumber: e.target.value})}
-                className="border-gray-300 focus:border-purple-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="signupPassword">Password</Label>
-              <Input
-                id="signupPassword"
-                type="password"
-                value={signupData.password}
-                onChange={(e) => setSignupData({...signupData, password: e.target.value})}
-                className="border-gray-300 focus:border-purple-500"
-              />
-            </div>
-            <Button 
-              onClick={handleUserSignup} 
-              className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
-            >
-              Sign Up
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Item Dialog */}
-      <Dialog open={showAddItem} onOpenChange={setShowAddItem}>
-        <DialogContent className="bg-white max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add New Item</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="itemName">Item Name</Label>
-              <Input
-                id="itemName"
-                value={newItem.name}
-                onChange={(e) => setNewItem({...newItem, name: e.target.value})}
-                className="border-gray-300 focus:border-purple-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="itemCategory">Category</Label>
-              <Input
-                id="itemCategory"
-                value={newItem.category}
-                onChange={(e) => setNewItem({...newItem, category: e.target.value})}
-                className="border-gray-300 focus:border-purple-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="itemQuantity">Quantity</Label>
-              <Input
-                id="itemQuantity"
-                type="number"
-                value={newItem.quantity}
-                onChange={(e) => setNewItem({...newItem, quantity: parseInt(e.target.value) || 0})}
-                className="border-gray-300 focus:border-purple-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="itemCondition">Condition</Label>
-              <Select value={newItem.condition} onValueChange={(value) => setNewItem({...newItem, condition: value})}>
-                <SelectTrigger className="border-gray-300 focus:border-purple-500">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="Excellent">Excellent</SelectItem>
-                  <SelectItem value="Good">Good</SelectItem>
-                  <SelectItem value="Fair">Fair</SelectItem>
-                  <SelectItem value="Poor">Poor</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="itemNotes">Notes (Optional)</Label>
-              <Textarea
-                id="itemNotes"
-                value={newItem.notes}
-                onChange={(e) => setNewItem({...newItem, notes: e.target.value})}
-                className="border-gray-300 focus:border-purple-500"
-              />
-            </div>
-            <Button 
-              onClick={handleAddItem} 
-              className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
-            >
-              Add Item
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Item Dialog */}
-      <Dialog open={showEditItem} onOpenChange={setShowEditItem}>
-        <DialogContent className="bg-white max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Item</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="editItemName">Item Name</Label>
-              <Input
-                id="editItemName"
-                value={newItem.name}
-                onChange={(e) => setNewItem({...newItem, name: e.target.value})}
-                className="border-gray-300 focus:border-purple-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="editItemCategory">Category</Label>
-              <Input
-                id="editItemCategory"
-                value={newItem.category}
-                onChange={(e) => setNewItem({...newItem, category: e.target.value})}
-                className="border-gray-300 focus:border-purple-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="editItemQuantity">Quantity</Label>
-              <Input
-                id="editItemQuantity"
-                type="number"
-                value={newItem.quantity}
-                onChange={(e) => setNewItem({...newItem, quantity: parseInt(e.target.value) || 0})}
-                className="border-gray-300 focus:border-purple-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="editItemCondition">Condition</Label>
-              <Select value={newItem.condition} onValueChange={(value) => setNewItem({...newItem, condition: value})}>
-                <SelectTrigger className="border-gray-300 focus:border-purple-500">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="Excellent">Excellent</SelectItem>
-                  <SelectItem value="Good">Good</SelectItem>
-                  <SelectItem value="Fair">Fair</SelectItem>
-                  <SelectItem value="Poor">Poor</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="editItemNotes">Notes (Optional)</Label>
-              <Textarea
-                id="editItemNotes"
-                value={newItem.notes}
-                onChange={(e) => setNewItem({...newItem, notes: e.target.value})}
-                className="border-gray-300 focus:border-purple-500"
-              />
-            </div>
-            <Button 
-              onClick={handleEditItem} 
-              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
-            >
-              Update Item
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Upload Students Dialog */}
-      <Dialog open={showUploadStudents} onOpenChange={setShowUploadStudents}>
-        <DialogContent className="bg-white max-w-md">
-          <DialogHeader>
-            <DialogTitle>Upload Authorized Students</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="csvData">CSV Data (Roll Number, Name)</Label>
-              <Textarea
-                id="csvData"
-                placeholder="2021001, John Doe&#10;2021002, Jane Smith&#10;2021003, Bob Johnson"
-                value={csvData}
-                onChange={(e) => setCsvData(e.target.value)}
-                className="border-gray-300 focus:border-purple-500 h-32"
-              />
-            </div>
-            <p className="text-sm text-gray-600">
-              Enter one student per line in format: Roll Number, Full Name
-            </p>
-            <Button 
-              onClick={handleUploadStudents} 
-              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
-            >
-              Upload Students
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Transfer Dialog */}
-      <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>
-        <DialogContent className="bg-white max-w-md">
-          <DialogHeader>
-            <DialogTitle>Transfer Item</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {selectedItem && (
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="font-medium">Item: {selectedItem.name}</p>
-                <p className="text-sm text-gray-600">Category: {selectedItem.category}</p>
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="toRollNumber">To Roll Number</Label>
-              <Input
-                id="toRollNumber"
-                value={transferData.toRollNumber}
-                onChange={(e) => setTransferData({...transferData, toRollNumber: e.target.value})}
-                className="border-gray-300 focus:border-purple-500"
-                placeholder="Enter recipient's roll number"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="transferNotes">Notes (Optional)</Label>
-              <Textarea
-                id="transferNotes"
-                value={transferData.notes}
-                onChange={(e) => setTransferData({...transferData, notes: e.target.value})}
-                className="border-gray-300 focus:border-purple-500"
-                placeholder="Add any notes about the transfer"
-              />
-            </div>
-            <Button 
-              onClick={handleTransferSubmit} 
-              className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
-            >
-              Send Transfer Request
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </div>
     </div>
   );
 };
