@@ -14,6 +14,7 @@ import UserSignup from '@/components/UserSignup';
 import UserSignin from '@/components/UserSignin';
 import UserProfile from '@/components/UserProfile';
 import { useSupabaseData } from '@/hooks/useSupabaseData';
+import EventNotifications from '@/components/EventNotifications';
 
 interface User {
   id: string;
@@ -49,7 +50,6 @@ const Index = () => {
   const [showIssueDialog, setShowIssueDialog] = useState(false);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const { toast } = useToast();
 
@@ -652,6 +652,14 @@ const Index = () => {
     <div className="min-h-screen bg-white">
       {/* Hero Section with Logo */}
       <div className="relative h-56 md:h-72 bg-gradient-to-r from-slate-100 to-gray-100 border-b-4 border-red-500">
+        {/* Event Notifications - Top Left Corner */}
+        <div className="absolute top-2 md:top-4 left-2 md:left-4 z-30">
+          <EventNotifications 
+            isAdmin={isLoggedIn} 
+            currentUser={currentUser} 
+          />
+        </div>
+
         {/* Logo - Updated with new image */}
         <img 
           src="/lovable-uploads/f4cee27c-9d5b-471d-93bc-0755082abef9.png" 
@@ -662,7 +670,7 @@ const Index = () => {
         {/* Student Auth Buttons */}
         {!currentUser && !isLoggedIn && (
           <>
-            <div className="absolute top-2 md:top-4 left-2 md:left-4 z-20">
+            <div className="absolute top-2 md:top-4 left-16 md:left-20 z-20">
               <Button 
                 onClick={() => setShowSignup(true)}
                 variant="outline" 

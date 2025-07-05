@@ -30,6 +30,77 @@ export type Database = {
         }
         Relationships: []
       }
+      event_registrations: {
+        Row: {
+          event_id: string
+          id: string
+          registered_at: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          event_id: string
+          id?: string
+          registered_at?: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          event_id?: string
+          id?: string
+          registered_at?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_registrations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          created_at: string
+          description: string | null
+          event_date: string
+          event_time: string | null
+          id: string
+          link: string | null
+          location: string | null
+          max_participants: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          event_date: string
+          event_time?: string | null
+          id?: string
+          link?: string | null
+          location?: string | null
+          max_participants?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          event_date?: string
+          event_time?: string | null
+          id?: string
+          link?: string | null
+          location?: string | null
+          max_participants?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       inventory: {
         Row: {
           added_date: string
@@ -39,6 +110,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          notes: string | null
           quantity: number
           updated_at: string
         }
@@ -50,6 +122,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          notes?: string | null
           quantity?: number
           updated_at?: string
         }
@@ -61,6 +134,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          notes?: string | null
           quantity?: number
           updated_at?: string
         }
@@ -151,25 +225,37 @@ export type Database = {
           created_at: string
           id: string
           issue_id: string
+          item_id: string | null
+          item_name: string | null
           notes: string | null
           request_date: string
           status: string
+          student_id: string | null
+          student_name: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           issue_id: string
+          item_id?: string | null
+          item_name?: string | null
           notes?: string | null
           request_date?: string
           status?: string
+          student_id?: string | null
+          student_name?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           issue_id?: string
+          item_id?: string | null
+          item_name?: string | null
           notes?: string | null
           request_date?: string
           status?: string
+          student_id?: string | null
+          student_name?: string | null
         }
         Relationships: [
           {
@@ -177,6 +263,13 @@ export type Database = {
             columns: ["issue_id"]
             isOneToOne: false
             referencedRelation: "issues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_requests_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
             referencedColumns: ["id"]
           },
         ]
