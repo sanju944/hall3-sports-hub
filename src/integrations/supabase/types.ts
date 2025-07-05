@@ -39,7 +39,6 @@ export type Database = {
           created_at: string
           id: string
           name: string
-          notes: string | null
           quantity: number
           updated_at: string
         }
@@ -51,7 +50,6 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
-          notes?: string | null
           quantity?: number
           updated_at?: string
         }
@@ -63,7 +61,6 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
-          notes?: string | null
           quantity?: number
           updated_at?: string
         }
@@ -154,37 +151,25 @@ export type Database = {
           created_at: string
           id: string
           issue_id: string
-          item_id: string | null
-          item_name: string | null
           notes: string | null
           request_date: string
           status: string
-          student_id: string | null
-          student_name: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           issue_id: string
-          item_id?: string | null
-          item_name?: string | null
           notes?: string | null
           request_date?: string
           status?: string
-          student_id?: string | null
-          student_name?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           issue_id?: string
-          item_id?: string | null
-          item_name?: string | null
           notes?: string | null
           request_date?: string
           status?: string
-          student_id?: string | null
-          student_name?: string | null
         }
         Relationships: [
           {
@@ -192,13 +177,6 @@ export type Database = {
             columns: ["issue_id"]
             isOneToOne: false
             referencedRelation: "issues"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "return_requests_item_id_fkey"
-            columns: ["item_id"]
-            isOneToOne: false
-            referencedRelation: "inventory"
             referencedColumns: ["id"]
           },
         ]

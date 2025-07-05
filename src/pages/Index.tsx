@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft, Bell, Check, X, Phone, Upload, UserPlus, User, Linkedin, RefreshCw, Transfer } from 'lucide-react';
+import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft, Bell, Check, X, Phone, Upload, UserPlus, User, Linkedin, RefreshCw } from 'lucide-react';
 import UserSignup from '@/components/UserSignup';
 import UserSignin from '@/components/UserSignin';
 import UserProfile from '@/components/UserProfile';
@@ -48,7 +48,6 @@ const Index = () => {
   const [showAddItem, setShowAddItem] = useState(false);
   const [showIssueDialog, setShowIssueDialog] = useState(false);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
-  const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
@@ -61,7 +60,6 @@ const Index = () => {
     returnRequests,
     notifications,
     authorizedStudents,
-    transferRequests,
     loading,
     addInventoryItem,
     updateInventoryItem,
@@ -75,9 +73,7 @@ const Index = () => {
     addNotification,
     updateNotification,
     deleteNotification,
-    addAuthorizedStudents,
-    addTransferRequest,
-    updateTransferRequest
+    addAuthorizedStudents
   } = useSupabaseData();
 
   // Form states
@@ -95,12 +91,6 @@ const Index = () => {
 
   const [returnForm, setReturnForm] = useState({
     issueId: '',
-    notes: ''
-  });
-
-  const [transferForm, setTransferForm] = useState({
-    issueId: '',
-    toUserId: '',
     notes: ''
   });
 
@@ -535,129 +525,6 @@ const Index = () => {
     }
   };
 
-  const handleTransferItem = async () => {
-    if (!transferForm.issueId || !transferForm.toUserId || !currentUser) {
-      toast({
-        title: "Error",
-        description: "Please select an item and recipient user.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const issue = issues.find(i => i.id === transferForm.issueId);
-    const toUser = users.find(u => u.id === transferForm.toUserId);
-    
-    if (!issue || !toUser) {
-      toast({
-        title: "Error",
-        description: "Invalid item or recipient selected.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      await addTransferRequest({
-        item_id: issue.item_id,
-        item_name: issue.item_name,
-        from_user_id: currentUser.rollNumber,
-        from_user_name: currentUser.name,
-        to_user_id: toUser.roll_number,
-        to_user_name: toUser.name,
-        request_date: new Date().toISOString().split('T')[0],
-        status: 'pending',
-        notes: transferForm.notes || null
-      });
-
-      setTransferForm({ issueId: '', toUserId: '', notes: '' });
-      setShowTransferDialog(false);
-
-      toast({
-        title: "Transfer Request Sent",
-        description: `Transfer request for ${issue.item_name} sent to ${toUser.name}`,
-      });
-    } catch (error) {
-      console.error('Error creating transfer request:', error);
-      toast({
-        title: "Transfer Failed",
-        description: "Failed to create transfer request. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleApproveTransfer = async (transferId: string) => {
-    const transfer = transferRequests.find(t => t.id === transferId);
-    if (!transfer) return;
-
-    try {
-      // Update transfer status to approved
-      await updateTransferRequest(transferId, { status: 'approved' });
-
-      // Find the original issue and update it to the new user
-      const originalIssue = issues.find(i => 
-        i.item_id === transfer.item_id && 
-        i.student_id === transfer.from_user_id && 
-        i.status === 'issued'
-      );
-
-      if (originalIssue) {
-        await updateIssue(originalIssue.id, {
-          student_id: transfer.to_user_id,
-          student_name: transfer.to_user_name,
-          room_number: users.find(u => u.roll_number === transfer.to_user_id)?.room_number || '',
-          phone_number: users.find(u => u.roll_number === transfer.to_user_id)?.phone_number || ''
-        });
-      }
-
-      // Remove notification
-      const notificationToRemove = notifications.find(n => 
-        n.data && typeof n.data === 'object' && 'transfer_id' in n.data && n.data.transfer_id === transferId
-      );
-      if (notificationToRemove) {
-        await deleteNotification(notificationToRemove.id);
-      }
-
-      toast({
-        title: "Transfer Approved",
-        description: `${transfer.item_name} transferred to ${transfer.to_user_name}`,
-      });
-    } catch (error) {
-      console.error('Error approving transfer:', error);
-      toast({
-        title: "Approval Failed",
-        description: "Failed to approve transfer. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleRejectTransfer = async (transferId: string) => {
-    try {
-      await updateTransferRequest(transferId, { status: 'rejected' });
-
-      const notificationToRemove = notifications.find(n => 
-        n.data && typeof n.data === 'object' && 'transfer_id' in n.data && n.data.transfer_id === transferId
-      );
-      if (notificationToRemove) {
-        await deleteNotification(notificationToRemove.id);
-      }
-
-      toast({
-        title: "Transfer Request Rejected",
-        description: "Transfer request has been rejected.",
-      });
-    } catch (error) {
-      console.error('Error rejecting transfer:', error);
-      toast({
-        title: "Rejection Failed",
-        description: "Failed to reject transfer. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleMarkNotificationAsRead = async (id: string) => {
     try {
       await updateNotification(id, { read: true });
@@ -783,132 +650,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Notification Button - Top Left Corner */}
-      {currentUser && (
-        <div className="fixed top-4 left-4 z-50">
-          <Dialog open={showNotifications} onOpenChange={setShowNotifications}>
-            <DialogTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-white border-blue-500 text-blue-600 hover:bg-blue-50 relative shadow-lg"
-              >
-                <Bell className="h-4 w-4" />
-                {unreadNotifications > 0 && (
-                  <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 text-xs bg-red-500">
-                    {unreadNotifications}
-                  </Badge>
-                )}
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-white max-w-md max-h-96 overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Notifications</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-2">
-                {notifications.filter(n => 
-                  (n.data && typeof n.data === 'object' && 'to_user_id' in n.data && n.data.to_user_id === currentUser.rollNumber) ||
-                  n.type === 'issue' || n.type === 'return_request'
-                ).length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">No notifications</p>
-                ) : (
-                  notifications.filter(n => 
-                    (n.data && typeof n.data === 'object' && 'to_user_id' in n.data && n.data.to_user_id === currentUser.rollNumber) ||
-                    n.type === 'issue' || n.type === 'return_request'
-                  ).map((notification) => (
-                    <div
-                      key={notification.id}
-                      className={`p-3 rounded-lg border ${notification.read ? 'bg-gray-50' : 'bg-blue-50 border-blue-200'} relative`}
-                    >
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="absolute top-1 right-1 h-6 w-6 p-0"
-                        onClick={() => handleRemoveNotification(notification.id)}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                      <div onClick={() => handleMarkNotificationAsRead(notification.id)}>
-                        <p className="text-sm font-medium pr-6">{notification.message}</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {new Date(notification.created_at).toLocaleString()}
-                        </p>
-                        {notification.type === 'return_request' && (
-                          <div className="flex gap-2 mt-2">
-                            <Button
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const returnRequest = returnRequests.find(r => 
-                                  notification.data && typeof notification.data === 'object' && 'issue_id' in notification.data && r.issue_id === notification.data.issue_id
-                                );
-                                if (returnRequest) {
-                                  handleApproveReturnRequest(returnRequest.id);
-                                }
-                              }}
-                              className="bg-green-500 hover:bg-green-600"
-                            >
-                              <Check className="h-3 w-3 mr-1" />
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const returnRequest = returnRequests.find(r => 
-                                  notification.data && typeof notification.data === 'object' && 'issue_id' in notification.data && r.issue_id === notification.data.issue_id
-                                );
-                                if (returnRequest) {
-                                  handleRejectReturnRequest(returnRequest.id);
-                                }
-                              }}
-                            >
-                              <X className="h-3 w-3 mr-1" />
-                              Reject
-                            </Button>
-                          </div>
-                        )}
-                        {notification.type === 'transfer_request' && (
-                          <div className="flex gap-2 mt-2">
-                            <Button
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (notification.data && typeof notification.data === 'object' && 'transfer_id' in notification.data) {
-                                  handleApproveTransfer(notification.data.transfer_id as string);
-                                }
-                              }}
-                              className="bg-green-500 hover:bg-green-600"
-                            >
-                              <Check className="h-3 w-3 mr-1" />
-                              Accept
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (notification.data && typeof notification.data === 'object' && 'transfer_id' in notification.data) {
-                                  handleRejectTransfer(notification.data.transfer_id as string);
-                                }
-                              }}
-                            >
-                              <X className="h-3 w-3 mr-1" />
-                              Reject
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      )}
-
       {/* Hero Section with Logo */}
       <div className="relative h-56 md:h-72 bg-gradient-to-r from-slate-100 to-gray-100 border-b-4 border-red-500">
         {/* Logo - Updated with new image */}
@@ -1100,7 +841,7 @@ const Index = () => {
                     </DialogTrigger>
                     <DialogContent className="bg-white max-w-md max-h-96 overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle>Admin Notifications</DialogTitle>
+                        <DialogTitle>Notifications</DialogTitle>
                       </DialogHeader>
                       <div className="space-y-2">
                         {notifications.length === 0 ? (
@@ -1184,7 +925,7 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Issue/Return/Transfer Action Buttons */}
+      {/* Issue/Return Action Buttons */}
       {currentUser && (
         <div className="bg-white shadow-sm border-b">
           <div className="container mx-auto px-4 py-4">
@@ -1275,65 +1016,6 @@ const Index = () => {
                     </div>
                     <Button onClick={handleRequestReturn} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700">
                       Request Return
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="border-purple-500 text-purple-600 hover:bg-purple-50 flex-1 sm:flex-none">
-                    <Transfer className="h-4 w-4 mr-2" />
-                    Transfer Item
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-white max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Transfer Item to Another User</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="transferItem">Select Your Issued Item</Label>
-                      <Select onValueChange={(value) => setTransferForm({...transferForm, issueId: value})}>
-                        <SelectTrigger className="border-gray-300 focus:border-red-500">
-                          <SelectValue placeholder="Select your issued item" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {getUserIssues(currentUser.rollNumber).map(issue => (
-                            <SelectItem key={issue.id} value={issue.id}>
-                              {issue.item_name} (Issued: {issue.issue_date})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="transferTo">Transfer To</Label>
-                      <Select onValueChange={(value) => setTransferForm({...transferForm, toUserId: value})}>
-                        <SelectTrigger className="border-gray-300 focus:border-red-500">
-                          <SelectValue placeholder="Select recipient user" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {users.filter(user => user.roll_number !== currentUser.rollNumber).map(user => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.name} ({user.roll_number})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="transferNotes">Transfer Notes (Optional)</Label>
-                      <Textarea
-                        id="transferNotes"
-                        value={transferForm.notes}
-                        onChange={(e) => setTransferForm({...transferForm, notes: e.target.value})}
-                        className="border-gray-300 focus:border-red-500"
-                        placeholder="Any notes about the transfer..."
-                      />
-                    </div>
-                    <Button onClick={handleTransferItem} className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700">
-                      Send Transfer Request
                     </Button>
                   </div>
                 </DialogContent>

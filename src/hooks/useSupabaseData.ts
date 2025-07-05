@@ -25,10 +25,6 @@ type NotificationUpdate = Database['public']['Tables']['notifications']['Update'
 type AuthorizedStudentRow = Database['public']['Tables']['authorized_students']['Row'];
 type AuthorizedStudentInsert = Database['public']['Tables']['authorized_students']['Insert'];
 
-type TransferRequestRow = Database['public']['Tables']['transfer_requests']['Row'];
-type TransferRequestInsert = Database['public']['Tables']['transfer_requests']['Insert'];
-type TransferRequestUpdate = Database['public']['Tables']['transfer_requests']['Update'];
-
 export const useSupabaseData = () => {
   const [inventory, setInventory] = useState<InventoryRow[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -36,7 +32,6 @@ export const useSupabaseData = () => {
   const [returnRequests, setReturnRequests] = useState<ReturnRequestRow[]>([]);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [authorizedStudents, setAuthorizedStudents] = useState<AuthorizedStudentRow[]>([]);
-  const [transferRequests, setTransferRequests] = useState<TransferRequestRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchInventory = async () => {
@@ -119,20 +114,6 @@ export const useSupabaseData = () => {
       setAuthorizedStudents(data || []);
     } catch (error) {
       console.error('Error fetching authorized students:', error);
-    }
-  };
-
-  const fetchTransferRequests = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('transfer_requests')
-        .select('*')
-        .order('request_date', { ascending: false });
-
-      if (error) throw error;
-      setTransferRequests(data || []);
-    } catch (error) {
-      console.error('Error fetching transfer requests:', error);
     }
   };
 
@@ -364,39 +345,6 @@ export const useSupabaseData = () => {
     }
   };
 
-  const addTransferRequest = async (request: TransferRequestInsert) => {
-    try {
-      const { data, error } = await supabase
-        .from('transfer_requests')
-        .insert(request)
-        .select()
-        .single();
-
-      if (error) throw error;
-      setTransferRequests(prev => [...prev, data]);
-    } catch (error) {
-      console.error('Error adding transfer request:', error);
-      throw error;
-    }
-  };
-
-  const updateTransferRequest = async (id: string, updates: TransferRequestUpdate) => {
-    try {
-      const { data, error } = await supabase
-        .from('transfer_requests')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      setTransferRequests(prev => prev.map(request => request.id === id ? data : request));
-    } catch (error) {
-      console.error('Error updating transfer request:', error);
-      throw error;
-    }
-  };
-
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -407,8 +355,7 @@ export const useSupabaseData = () => {
           fetchIssues(),
           fetchReturnRequests(),
           fetchNotifications(),
-          fetchAuthorizedStudents(),
-          fetchTransferRequests()
+          fetchAuthorizedStudents()
         ]);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -427,7 +374,6 @@ export const useSupabaseData = () => {
     returnRequests,
     notifications,
     authorizedStudents,
-    transferRequests,
     loading,
     addInventoryItem,
     updateInventoryItem,
@@ -441,8 +387,6 @@ export const useSupabaseData = () => {
     addNotification,
     updateNotification,
     deleteNotification,
-    addAuthorizedStudents,
-    addTransferRequest,
-    updateTransferRequest
+    addAuthorizedStudents
   };
 };
