@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -97,12 +98,14 @@ export const useSupabaseData = () => {
 
   const fetchNotifications = async () => {
     try {
+      console.log('Fetching notifications...');
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      console.log('Fetched notifications:', data);
       setNotifications(data || []);
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -124,12 +127,14 @@ export const useSupabaseData = () => {
 
   const fetchTransferRequests = async () => {
     try {
+      console.log('Fetching transfer requests...');
       const { data, error } = await supabase
         .from('transfer_requests')
         .select('*')
         .order('request_date', { ascending: false });
 
       if (error) throw error;
+      console.log('Fetched transfer requests:', data);
       setTransferRequests(data || []);
     } catch (error) {
       console.error('Error fetching transfer requests:', error);
@@ -366,6 +371,7 @@ export const useSupabaseData = () => {
 
   const addTransferRequest = async (request: TransferRequestInsert) => {
     try {
+      console.log('Creating transfer request:', request);
       const { data, error } = await supabase
         .from('transfer_requests')
         .insert(request)
@@ -373,7 +379,11 @@ export const useSupabaseData = () => {
         .single();
 
       if (error) throw error;
+      console.log('Transfer request created:', data);
       setTransferRequests(prev => [...prev, data]);
+      
+      // Force refresh notifications to ensure they're up to date
+      await fetchNotifications();
     } catch (error) {
       console.error('Error adding transfer request:', error);
       throw error;
@@ -382,6 +392,7 @@ export const useSupabaseData = () => {
 
   const updateTransferRequest = async (id: string, updates: TransferRequestUpdate) => {
     try {
+      console.log('Updating transfer request:', id, updates);
       const { data, error } = await supabase
         .from('transfer_requests')
         .update(updates)
@@ -390,6 +401,7 @@ export const useSupabaseData = () => {
         .single();
 
       if (error) throw error;
+      console.log('Transfer request updated:', data);
       setTransferRequests(prev => prev.map(request => request.id === id ? data : request));
     } catch (error) {
       console.error('Error updating transfer request:', error);
@@ -418,6 +430,84 @@ export const useSupabaseData = () => {
     };
 
     fetchData();
+
+    // Set up real-time subscriptions
+    const notificationsChannel = supabase
+      .channel('notifications-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications'
+        },
+        (payload) => {
+          console.log('New notification received:', payload.new);
+          setNotifications(prev => [payload.new as NotificationRow, ...prev]);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications'
+        },
+        (payload) => {
+          console.log('Notification updated:', payload.new);
+          setNotifications(prev => prev.map(notification => 
+            notification.id === payload.new.id ? payload.new as NotificationRow : notification
+          ));
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'notifications'
+        },
+        (payload) => {
+          console.log('Notification deleted:', payload.old);
+          setNotifications(prev => prev.filter(notification => notification.id !== payload.old.id));
+        }
+      )
+      .subscribe();
+
+    const transferRequestsChannel = supabase
+      .channel('transfer-requests-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'transfer_requests'
+        },
+        (payload) => {
+          console.log('New transfer request received:', payload.new);
+          setTransferRequests(prev => [payload.new as TransferRequestRow, ...prev]);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'transfer_requests'
+        },
+        (payload) => {
+          console.log('Transfer request updated:', payload.new);
+          setTransferRequests(prev => prev.map(request => 
+            request.id === payload.new.id ? payload.new as TransferRequestRow : request
+          ));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(notificationsChannel);
+      supabase.removeChannel(transferRequestsChannel);
+    };
   }, []);
 
   return {

@@ -28,16 +28,39 @@ const TransferNotifications: React.FC<TransferNotificationsProps> = ({
   onMarkAsRead,
   onRemoveNotification
 }) => {
+  console.log('TransferNotifications props:', {
+    notificationsCount: notifications.length,
+    transferRequestsCount: transferRequests.length,
+    currentUser,
+    notifications: notifications.filter(n => n.type === 'transfer_request'),
+  });
+
   // Filter notifications for current user's transfer requests
-  const userTransferNotifications = notifications.filter(notification => 
-    notification.type === 'transfer_request' && 
-    notification.data && 
-    typeof notification.data === 'object' && 
-    'to_user_id' in notification.data && 
-    notification.data.to_user_id === currentUser?.rollNumber
-  );
+  const userTransferNotifications = notifications.filter(notification => {
+    const isTransferRequest = notification.type === 'transfer_request';
+    const hasData = notification.data && typeof notification.data === 'object';
+    const isForCurrentUser = hasData && 'to_user_id' in notification.data && 
+                             notification.data.to_user_id === currentUser?.rollNumber;
+    
+    console.log('Filtering notification:', {
+      id: notification.id,
+      type: notification.type,
+      isTransferRequest,
+      hasData,
+      data: notification.data,
+      isForCurrentUser,
+      currentUserRoll: currentUser?.rollNumber
+    });
+    
+    return isTransferRequest && hasData && isForCurrentUser;
+  });
 
   const unreadCount = userTransferNotifications.filter(n => !n.read).length;
+
+  console.log('Filtered transfer notifications:', {
+    userTransferNotifications,
+    unreadCount
+  });
 
   if (!currentUser) return null;
 
@@ -66,7 +89,14 @@ const TransferNotifications: React.FC<TransferNotificationsProps> = ({
         </DialogHeader>
         <div className="space-y-3">
           {userTransferNotifications.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">No transfer requests</p>
+            <div className="text-center py-4">
+              <p className="text-gray-500">No transfer requests</p>
+              <p className="text-xs text-gray-400 mt-2">
+                Debug info: Current user: {currentUser.rollNumber}, 
+                Total notifications: {notifications.length}, 
+                Transfer notifications: {notifications.filter(n => n.type === 'transfer_request').length}
+              </p>
+            </div>
           ) : (
             userTransferNotifications.map((notification) => {
               const transferRequest = transferRequests.find(tr => 
