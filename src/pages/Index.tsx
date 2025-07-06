@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft, Bell, Check, X, Phone, Upload, UserPlus, User, Linkedin, RefreshCw } from 'lucide-react';
+import TransferNotifications from '@/components/TransferNotifications';
+import { LogIn, LogOut, Plus, Edit, Trash2, Download, Package, Users, Activity, Trophy, Shield, ArrowRight, ArrowLeft, Bell, Check, X, Phone, Upload, UserPlus, User, Linkedin, RefreshCw, ArrowRightLeft } from 'lucide-react';
 import UserSignup from '@/components/UserSignup';
 import UserSignin from '@/components/UserSignin';
 import UserProfile from '@/components/UserProfile';
@@ -51,6 +52,7 @@ const Index = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
   const { toast } = useToast();
 
   const {
@@ -60,6 +62,7 @@ const Index = () => {
     returnRequests,
     notifications,
     authorizedStudents,
+    transferRequests,
     loading,
     addInventoryItem,
     updateInventoryItem,
@@ -73,7 +76,9 @@ const Index = () => {
     addNotification,
     updateNotification,
     deleteNotification,
-    addAuthorizedStudents
+    addAuthorizedStudents,
+    addTransferRequest,
+    updateTransferRequest
   } = useSupabaseData();
 
   // Form states
@@ -91,6 +96,12 @@ const Index = () => {
 
   const [returnForm, setReturnForm] = useState({
     issueId: '',
+    notes: ''
+  });
+
+  const [transferForm, setTransferForm] = useState({
+    issueId: '',
+    toRollNumber: '',
     notes: ''
   });
 
@@ -541,6 +552,140 @@ const Index = () => {
     }
   };
 
+  const handleTransferItem = async () => {
+    if (!transferForm.issueId || !transferForm.toRollNumber || !currentUser) {
+      toast({
+        title: "Error",
+        description: "Please select an item and enter recipient's roll number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const issue = issues.find(i => i.id === transferForm.issueId);
+    if (!issue) return;
+
+    // Find recipient user
+    const recipient = users.find(u => u.roll_number.toLowerCase() === transferForm.toRollNumber.toLowerCase());
+    if (!recipient) {
+      toast({
+        title: "Error",
+        description: "Recipient user not found. Please check the roll number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (recipient.roll_number === currentUser.rollNumber) {
+      toast({
+        title: "Error",
+        description: "You cannot transfer an item to yourself.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await addTransferRequest({
+        item_id: issue.item_id,
+        item_name: issue.item_name,
+        from_user_id: currentUser.rollNumber,
+        from_user_name: currentUser.name,
+        to_user_id: recipient.roll_number,
+        to_user_name: recipient.name,
+        notes: transferForm.notes || null
+      });
+
+      setTransferForm({ issueId: '', toRollNumber: '', notes: '' });
+      setShowTransferDialog(false);
+
+      toast({
+        title: "Transfer Request Sent",
+        description: `Transfer request for ${issue.item_name} sent to ${recipient.name}`,
+      });
+    } catch (error) {
+      console.error('Error creating transfer request:', error);
+      toast({
+        title: "Transfer Failed",
+        description: "Failed to send transfer request. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleApproveTransfer = async (transferId: string) => {
+    const transferRequest = transferRequests.find(tr => tr.id === transferId);
+    if (!transferRequest) return;
+
+    const issue = issues.find(i => i.item_id === transferRequest.item_id && i.student_id === transferRequest.from_user_id && i.status === 'issued');
+    if (!issue) {
+      toast({
+        title: "Error",
+        description: "Original issue not found or already returned.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Update transfer request status
+      await updateTransferRequest(transferId, { status: 'approved' });
+
+      // Update the original issue to reflect the transfer
+      await updateIssue(issue.id, {
+        student_name: transferRequest.to_user_name,
+        student_id: transferRequest.to_user_id,
+        notes: `Transferred from ${transferRequest.from_user_name} (${transferRequest.from_user_id})`
+      });
+
+      // Remove the transfer notification
+      const notificationToRemove = notifications.find(n => 
+        n.data && typeof n.data === 'object' && 'transfer_id' in n.data && n.data.transfer_id === transferId
+      );
+      if (notificationToRemove) {
+        await deleteNotification(notificationToRemove.id);
+      }
+
+      toast({
+        title: "Transfer Approved",
+        description: `${transferRequest.item_name} has been transferred to you from ${transferRequest.from_user_name}`,
+      });
+    } catch (error) {
+      console.error('Error approving transfer:', error);
+      toast({
+        title: "Approval Failed",
+        description: "Failed to approve transfer. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRejectTransfer = async (transferId: string) => {
+    try {
+      await updateTransferRequest(transferId, { status: 'rejected' });
+
+      // Remove the transfer notification
+      const notificationToRemove = notifications.find(n => 
+        n.data && typeof n.data === 'object' && 'transfer_id' in n.data && n.data.transfer_id === transferId
+      );
+      if (notificationToRemove) {
+        await deleteNotification(notificationToRemove.id);
+      }
+
+      toast({
+        title: "Transfer Rejected",
+        description: "Transfer request has been rejected.",
+      });
+    } catch (error) {
+      console.error('Error rejecting transfer:', error);
+      toast({
+        title: "Rejection Failed",
+        description: "Failed to reject transfer. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const exportToExcel = () => {
     const csvContent = [
       ['INVENTORY DATA'],
@@ -658,6 +803,21 @@ const Index = () => {
           alt="Hall-3 Sports Logo" 
           className="absolute top-3 md:top-6 left-1/2 transform -translate-x-1/2 h-12 w-12 md:h-20 md:w-20 lg:h-24 lg:w-24 object-contain z-10"
         />
+        
+        {/* Transfer Notifications - Top Left Corner */}
+        {currentUser && (
+          <div className="absolute top-2 md:top-4 left-2 md:left-4 z-20">
+            <TransferNotifications
+              notifications={notifications}
+              transferRequests={transferRequests}
+              currentUser={currentUser}
+              onApproveTransfer={handleApproveTransfer}
+              onRejectTransfer={handleRejectTransfer}
+              onMarkAsRead={handleMarkNotificationAsRead}
+              onRemoveNotification={handleRemoveNotification}
+            />
+          </div>
+        )}
         
         {/* Student Auth Buttons */}
         {!currentUser && !isLoggedIn && (
@@ -925,7 +1085,7 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Issue/Return Action Buttons */}
+      {/* Issue/Return/Transfer Action Buttons */}
       {currentUser && (
         <div className="bg-white shadow-sm border-b">
           <div className="container mx-auto px-4 py-4">
@@ -1016,6 +1176,60 @@ const Index = () => {
                     </div>
                     <Button onClick={handleRequestReturn} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700">
                       Request Return
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="border-purple-500 text-purple-600 hover:bg-purple-50 flex-1 sm:flex-none">
+                    <ArrowRightLeft className="h-4 w-4 mr-2" />
+                    Transfer Item
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-white max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Transfer Item to Another User</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="transferItem">Select Your Issued Item</Label>
+                      <Select onValueChange={(value) => setTransferForm({...transferForm, issueId: value})}>
+                        <SelectTrigger className="border-gray-300 focus:border-red-500">
+                          <SelectValue placeholder="Select your issued item" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getUserIssues(currentUser.rollNumber).map(issue => (
+                            <SelectItem key={issue.id} value={issue.id}>
+                              {issue.item_name} (Issued: {issue.issue_date})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="toRollNumber">Recipient's Roll Number</Label>
+                      <Input
+                        id="toRollNumber"
+                        value={transferForm.toRollNumber}
+                        onChange={(e) => setTransferForm({...transferForm, toRollNumber: e.target.value})}
+                        className="border-gray-300 focus:border-red-500"
+                        placeholder="Enter roll number of recipient"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="transferNotes">Transfer Notes (Optional)</Label>
+                      <Textarea
+                        id="transferNotes"
+                        value={transferForm.notes}
+                        onChange={(e) => setTransferForm({...transferForm, notes: e.target.value})}
+                        className="border-gray-300 focus:border-red-500"
+                        placeholder="Any notes about the transfer..."
+                      />
+                    </div>
+                    <Button onClick={handleTransferItem} className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700">
+                      Send Transfer Request
                     </Button>
                   </div>
                 </DialogContent>
